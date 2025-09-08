@@ -1,0 +1,482 @@
+<el-card class="config-card" header="SVID映射配置">
+    <!-- 操作工具栏 -->
+    <div class="mapping-toolbar">
+        <el-space>
+            <el-button type="primary" onclick="addSvidMapping">
+                <el-icon><Plus /></el-icon>添加映射
+            </el-button>
+            <el-button onclick="importMappings">
+                <el-icon><Upload /></el-icon>批量导入
+            </el-button>
+            <el-button onclick="exportMappings">
+                <el-icon><Download /></el-icon>导出映射
+            </el-button>
+            <el-button onclick="validateAllMappings">
+                <el-icon><Warning /></el-icon>验证映射
+            </el-button>
+        </el-space>
+        <div style="float: right;">
+            <el-input
+                v-model="mappingSearchText"
+                placeholder="搜索SVID或地址"
+                style="width: 250px;"
+                clearable>
+                <template #prepend>
+                    <el-icon><Search /></el-icon>
+                </template>
+            </el-input>
+        </div>
+    </div>
+
+    <!-- SVID映射表格 -->
+    <el-table
+        :data="filteredSvidMappings"
+        style="width: 100%"
+        class="mapping-table"
+        border
+        stripe
+        :default-sort="{ prop: 'svid', order: 'ascending' }">
+        
+        <el-table-column prop="svid" label="SVID" width="100" sortable>
+            <template #default="scope">
+                <el-input-number
+                    v-if="scope.row.editing"
+                    v-model="scope.row.svid"
+                    :min="1"
+                    :max="65535"
+                    size="small"
+                    style="width: 100%">
+                </el-input-number>
+                <el-tag v-else type="primary" size="small">{{ scope.row.svid }}</el-tag>
+            </template>
+        </el-table-column>
+        
+        <el-table-column prop="plcAddress" label="PLC地址" width="150">
+            <template #default="scope">
+                <el-input
+                    v-if="scope.row.editing"
+                    v-model="scope.row.plcAddress"
+                    placeholder="例如: D1000"
+                    size="small">
+                </el-input>
+                <el-tag v-else type="info" size="small">{{ scope.row.plcAddress }}</el-tag>
+            </template>
+        </el-table-column>
+        
+        <el-table-column prop="description" label="描述" min-width="200">
+            <template #default="scope">
+                <el-input
+                    v-if="scope.row.editing"
+                    v-model="scope.row.description"
+                    placeholder="请输入描述"
+                    size="small">
+                </el-input>
+                <span v-else>{{ scope.row.description }}</span>
+            </template>
+        </el-table-column>
+        
+        <el-table-column prop="dataType" label="数据类型" width="120">
+            <template #default="scope">
+                <el-select
+                    v-if="scope.row.editing"
+                    v-model="scope.row.dataType"
+                    size="small"
+                    style="width: 100%">
+                    <el-option label="Int16" value="Int16"></el-option>
+                    <el-option label="Int32" value="Int32"></el-option>
+                    <el-option label="Float" value="Float"></el-option>
+                    <el-option label="String" value="String"></el-option>
+                    <el-option label="Bool" value="Bool"></el-option>
+                </el-select>
+                <el-tag v-else :type="getDataTypeColor(scope.row.dataType)" size="small">
+                    {{ scope.row.dataType }}
+                </el-tag>
+            </template>
+        </el-table-column>
+        
+        <el-table-column label="状态" width="100">
+            <template #default="scope">
+                <el-tooltip :content="getMappingStatusTooltip(scope.row)" placement="top">
+                    <el-tag :type="getMappingStatusType(scope.row)" size="small">
+                        {{ getMappingStatus(scope.row) }}
+                    </el-tag>
+                </el-tooltip>
+            </template>
+        </el-table-column>
+        
+        <el-table-column label="操作" width="200" fixed="right">
+            <template #default="scope">
+                <el-button-group v-if="!scope.row.editing">
+                    <el-tooltip content="编辑映射" placement="top">
+                        <el-button size="small" onclick="editMapping(scope.$index)">
+                            <el-icon><Edit /></el-icon>
+                        </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="测试映射" placement="top">
+                        <el-button size="small" onclick="testMapping(scope.row)">
+                            <el-icon><View /></el-icon>
+                        </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="复制映射" placement="top">
+                        <el-button size="small" onclick="copyMapping(scope.row)">
+                            <el-icon><CopyDocument /></el-icon>
+                        </el-button>
+                    </el-tooltip>
+                    <el-popconfirm 
+                        title="确定删除这个映射吗？" 
+                        @* @confirm="deleteMapping(scope.$index)" *@
+                        confirm-button-text="确定"
+                        cancel-button-text="取消">
+                        <template #reference>
+                            <el-tooltip content="删除映射" placement="top">
+                                <el-button size="small" type="danger">
+                                    <el-icon><Delete /></el-icon>
+                                </el-button>
+                            </el-tooltip>
+                        </template>
+                    </el-popconfirm>
+                </el-button-group>
+                
+                <el-button-group v-else>
+                    <el-button size="small" type="primary" onclick="saveMapping(scope.$index)">
+                        <el-icon><Check /></el-icon>保存
+                    </el-button>
+                    <el-button size="small" onclick="cancelEditMapping(scope.$index)">
+                        <el-icon><Close /></el-icon>取消
+                    </el-button>
+                </el-button-group>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <!-- 分页 -->
+    <el-pagination
+        v-model:current-page="mappingCurrentPage"
+        v-model:page-size="mappingPageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="totalMappings"
+        layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 20px; text-align: right;">
+    </el-pagination>
+
+    <!-- 批量操作 -->
+    <el-divider content-position="left">批量操作</el-divider>
+    <el-row :gutter="24">
+        <el-col :span="8">
+            <el-card class="batch-operation-card">
+                <template #header>
+                    <span>快速添加范围</span>
+                </template>
+                <el-form label-width="80px" size="small">
+                    <el-form-item label="起始SVID">
+                        <el-input-number v-model="batchAdd.startSvid" :min="1" :max="65535" style="width: 100%"></el-input-number>
+                    </el-form-item>
+                    <el-form-item label="结束SVID">
+                        <el-input-number v-model="batchAdd.endSvid" :min="1" :max="65535" style="width: 100%"></el-input-number>
+                    </el-form-item>
+                    <el-form-item label="起始地址">
+                        <el-input v-model="batchAdd.startAddress" placeholder="例如: D1000"></el-input>
+                    </el-form-item>
+                    <el-form-item label="地址间隔">
+                        <el-input-number v-model="batchAdd.addressStep" :min="1" :max="100" style="width: 100%"></el-input-number>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" onclick="batchAddMappings" style="width: 100%">
+                            <el-icon><Plus /></el-icon>批量添加
+                        </el-button>
+                    </el-form-item>
+                </el-form>
+            </el-card>
+        </el-col>
+        
+        <el-col :span="8">
+            <el-card class="batch-operation-card">
+                <template #header>
+                    <span>预定义模板</span>
+                </template>
+                <el-space direction="vertical" style="width: 100%;">
+                    <el-button onclick="loadTemplate('basic')" style="width: 100%">
+                        <el-icon><Document /></el-icon>基础状态变量
+                    </el-button>
+                    <el-button onclick="loadTemplate('process')" style="width: 100%">
+                        <el-icon><Setting /></el-icon>工艺参数变量
+                    </el-button>
+                    <el-button onclick="loadTemplate('alarm')" style="width: 100%">
+                        <el-icon><Warning /></el-icon>报警状态变量
+                    </el-button>
+                    <el-button onclick="loadTemplate('statistics')" style="width: 100%">
+                        <el-icon><DataBoard /></el-icon>统计数据变量
+                    </el-button>
+                </el-space>
+            </el-card>
+        </el-col>
+        
+        <el-col :span="8">
+            <el-card class="batch-operation-card">
+                <template #header>
+                    <span>映射统计</span>
+                </template>
+                <el-descriptions :column="1" size="small">
+                    <el-descriptions-item label="总映射数">
+                        <el-tag type="primary">{{ svidMappings.length }}</el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="有效映射">
+                        <el-tag type="success">{{ validMappings }}</el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="异常映射">
+                        <el-tag type="danger">{{ invalidMappings }}</el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="数据类型">
+                        <el-space>
+                            <el-tag v-for="(count, type) in dataTypeStats" :key="type" size="small">
+                                {{ type }}: {{ count }}
+                            </el-tag>
+                        </el-space>
+                    </el-descriptions-item>
+                </el-descriptions>
+            </el-card>
+        </el-col>
+    </el-row>
+
+    <!-- 配置说明 -->
+    <el-collapse style="margin-top: 20px;">
+        <el-collapse-item title="SVID映射配置说明" name="help">
+            <div class="mapping-help">
+                <h4>SVID映射规则:</h4>
+                <ul>
+                    <li><strong>SVID (Status Variable ID):</strong> 状态变量的唯一标识符，范围1-65535</li>
+                    <li><strong>PLC地址:</strong> 对应的PLC内存地址，如D1000、M200等</li>
+                    <li><strong>数据类型:</strong> 确定数据的读取和解析方式</li>
+                    <li><strong>描述:</strong> 变量的功能说明，便于维护</li>
+                </ul>
+                
+                <h4>地址格式说明:</h4>
+                <el-table :data="addressFormats" size="small" style="margin: 10px 0;">
+                    <el-table-column prop="type" label="类型" width="80"></el-table-column>
+                    <el-table-column prop="format" label="格式" width="100"></el-table-column>
+                    <el-table-column prop="example" label="示例" width="100"></el-table-column>
+                    <el-table-column prop="description" label="说明"></el-table-column>
+                </el-table>
+                
+                <p><el-tag type="warning" size="small">注意</el-tag> SVID映射配置修改后需要重新加载才能生效</p>
+            </div>
+        </el-collapse-item>
+    </el-collapse>
+</el-card>
+
+<script>
+export default {
+    data() {
+        return {
+            batchAdd: {
+                startSvid: 10000,
+                endSvid: 10010,
+                startAddress: 'D1000',
+                addressStep: 2
+            },
+            
+            addressFormats: [
+                { type: 'D', format: 'Dnnn', example: 'D1000', description: '数据寄存器' },
+                { type: 'M', format: 'Mnnn', example: 'M100', description: '辅助继电器' },
+                { type: 'W', format: 'Wnnn', example: 'W200', description: '字寄存器' },
+                { type: 'B', format: 'Bnnn', example: 'B50', description: '位寄存器' }
+            ]
+        };
+    },
+    
+    computed: {
+        validMappings() {
+            return this.svidMappings.filter(m => !m.editing && m.svid && m.plcAddress).length;
+        },
+        
+        invalidMappings() {
+            return this.svidMappings.filter(m => !m.svid || !m.plcAddress).length;
+        },
+        
+        dataTypeStats() {
+            const stats = {};
+            this.svidMappings.forEach(m => {
+                if (m.dataType) {
+                    stats[m.dataType] = (stats[m.dataType] || 0) + 1;
+                }
+            });
+            return stats;
+        }
+    },
+    
+    methods: {
+        getMappingStatus(mapping) {
+            if (mapping.editing) return '编辑中';
+            if (!mapping.svid || !mapping.plcAddress) return '配置错误';
+            return '正常';
+        },
+        
+        getMappingStatusType(mapping) {
+            if (mapping.editing) return 'warning';
+            if (!mapping.svid || !mapping.plcAddress) return 'danger';
+            return 'success';
+        },
+        
+        getMappingStatusTooltip(mapping) {
+            if (mapping.editing) return '正在编辑映射配置';
+            if (!mapping.svid) return 'SVID不能为空';
+            if (!mapping.plcAddress) return 'PLC地址不能为空';
+            return '映射配置正常';
+        },
+        
+        copyMapping(mapping) {
+            const newMapping = {
+                svid: mapping.svid + 1,
+                plcAddress: this.incrementAddress(mapping.plcAddress),
+                description: mapping.description + ' (副本)',
+                dataType: mapping.dataType,
+                editing: true
+            };
+            this.svidMappings.push(newMapping);
+        },
+        
+        incrementAddress(address) {
+            const match = address.match(/([A-Za-z]+)(\d+)/);
+            if (match) {
+                const prefix = match[1];
+                const number = parseInt(match[2]);
+                return prefix + (number + 2);
+            }
+            return address;
+        },
+        
+        batchAddMappings() {
+            if (this.batchAdd.startSvid > this.batchAdd.endSvid) {
+                ConfigUtils.showMessage('error', '参数错误', '起始SVID不能大于结束SVID');
+                return;
+            }
+            
+            const addressMatch = this.batchAdd.startAddress.match(/([A-Za-z]+)(\d+)/);
+            if (!addressMatch) {
+                ConfigUtils.showMessage('error', '地址格式错误', '请输入正确的PLC地址格式');
+                return;
+            }
+            
+            const prefix = addressMatch[1];
+            let addressNumber = parseInt(addressMatch[2]);
+            
+            for (let svid = this.batchAdd.startSvid; svid <= this.batchAdd.endSvid; svid++) {
+                // 检查SVID是否已存在
+                if (this.svidMappings.find(m => m.svid === svid)) {
+                    continue;
+                }
+                
+                this.svidMappings.push({
+                    svid: svid,
+                    plcAddress: prefix + addressNumber,
+                    description: `状态变量${svid}`,
+                    dataType: 'Int32',
+                    editing: false
+                });
+                
+                addressNumber += this.batchAdd.addressStep;
+            }
+            
+            ConfigUtils.showMessage('success', '批量添加成功', 
+                `已添加 ${this.batchAdd.endSvid - this.batchAdd.startSvid + 1} 个映射`);
+        },
+        
+        loadTemplate(templateType) {
+            const templates = {
+                basic: [
+                    { svid: 1, plcAddress: 'D1000', description: '设备时钟', dataType: 'String' },
+                    { svid: 721, plcAddress: 'D1002', description: '控制状态', dataType: 'Int32' },
+                    { svid: 722, plcAddress: 'D1004', description: '处理状态', dataType: 'Int32' }
+                ],
+                process: [
+                    { svid: 10001, plcAddress: 'D2000', description: '切割速度', dataType: 'Float' },
+                    { svid: 10002, plcAddress: 'D2002', description: '切割深度', dataType: 'Float' },
+                    { svid: 10003, plcAddress: 'D2004', description: '主轴转速', dataType: 'Int32' }
+                ],
+                alarm: [
+                    { svid: 12001, plcAddress: 'M100', description: '紧急停止', dataType: 'Bool' },
+                    { svid: 12002, plcAddress: 'M101', description: '门开报警', dataType: 'Bool' },
+                    { svid: 12003, plcAddress: 'M102', description: '气压异常', dataType: 'Bool' }
+                ],
+                statistics: [
+                    { svid: 20001, plcAddress: 'D3000', description: '加工计数', dataType: 'Int32' },
+                    { svid: 20002, plcAddress: 'D3002', description: '运行时间', dataType: 'Int32' },
+                    { svid: 20003, plcAddress: 'D3004', description: '故障次数', dataType: 'Int32' }
+                ]
+            };
+            
+            const template = templates[templateType];
+            if (template) {
+                template.forEach(mapping => {
+                    // 检查SVID是否已存在
+                    if (!this.svidMappings.find(m => m.svid === mapping.svid)) {
+                        this.svidMappings.push({ ...mapping, editing: false });
+                    }
+                });
+                
+                ConfigUtils.showMessage('success', '模板加载成功', 
+                    `已加载 ${template.length} 个预定义映射`);
+            }
+        },
+        
+        validateAllMappings() {
+            let validCount = 0;
+            let errorMessages = [];
+            
+            this.svidMappings.forEach((mapping, index) => {
+                if (!mapping.svid) {
+                    errorMessages.push(`第${index + 1}行: SVID不能为空`);
+                } else if (!mapping.plcAddress) {
+                    errorMessages.push(`第${index + 1}行: PLC地址不能为空`);
+                } else {
+                    validCount++;
+                }
+            });
+            
+            if (errorMessages.length > 0) {
+                ConfigUtils.showNotification('warning', '验证完成', 
+                    `有效映射: ${validCount}, 错误映射: ${errorMessages.length}`);
+            } else {
+                ConfigUtils.showNotification('success', '验证通过', 
+                    `所有 ${validCount} 个映射配置正确`);
+            }
+        }
+    }
+};
+</script>
+
+<style scoped>
+.mapping-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.mapping-table {
+    margin: 20px 0;
+}
+
+.batch-operation-card {
+    height: 300px;
+    margin: 10px 0;
+}
+
+.mapping-help ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.mapping-help li {
+    margin: 5px 0;
+    line-height: 1.6;
+}
+
+.mapping-help h4 {
+    margin: 15px 0 10px 0;
+    color: #303133;
+}
+</style>

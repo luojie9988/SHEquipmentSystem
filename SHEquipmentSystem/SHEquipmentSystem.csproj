@@ -7,6 +7,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\PLCConfigController1.cs" />
+    <Compile Remove="Models\PLCConfigViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Views\Config\layout_page.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Views\Config\_PLCBasicForm.cshtml" />
+    <None Include="Views\Home\_confignavigation.cshtml" />
+    <None Include="Views\Home\layout_page.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="HslCommunication" Version="12.3.3" />
     <PackageReference Include="Secs4Net" Version="2.4.4" />
     <PackageReference Include="Serilog" Version="4.3.0" />

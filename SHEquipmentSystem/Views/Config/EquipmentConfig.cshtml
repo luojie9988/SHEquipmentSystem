@@ -1,0 +1,93 @@
+@using SHEquipmentSystem.ViewModels
+@model EquipmentConfigViewModel
+@{
+    ViewData["Title"] = "设备系统配置";
+    ViewData["ConfigTitle"] = "设备系统配置";
+    Layout = "_ConfigLayout";
+}
+
+@section HeaderActions {
+    <el-button type="primary" onclick="saveEquipmentConfig" :loading="saving">
+        <el-icon><Check /></el-icon>保存配置
+    </el-button>
+    <el-button onclick="validateConfig" :loading="validating">
+        <el-icon><Warning /></el-icon>验证配置
+    </el-button>
+    <el-dropdown >
+        <el-button>
+            <el-icon><Download /></el-icon>导出配置<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+            <el-dropdown-menu>
+                <el-dropdown-item command="json">导出为JSON</el-dropdown-item>
+                <el-dropdown-item command="csv">导出为CSV</el-dropdown-item>
+                <el-dropdown-item command="template">下载模板</el-dropdown-item>
+            </el-dropdown-menu>
+        </template>
+    </el-dropdown>
+}
+
+<div id="equipment-config-app">
+    <!-- 配置向导步骤 -->
+    <el-steps :active="currentStep" finish-status="success" class="config-steps">
+        <el-step title="设备信息" description="基本设备参数" icon="Monitor"></el-step>
+        <el-step title="网络配置" description="通信参数设置" icon="Connection"></el-step>
+        <el-step title="性能参数" description="系统性能配置" icon="Setting"></el-step>
+        <el-step title="映射配置" description="SVID映射管理" icon="Grid"></el-step>
+        <el-step title="报告事件" description="事件报告配置" icon="Bell"></el-step>
+    </el-steps>
+
+    <!-- 配置内容区域 -->
+    <div class="equipment-config-content">
+        <!-- 设备基本信息 -->
+        <div v-show="currentStep === 0">
+            @await Html.PartialAsync("_ConfigPartials/_EquipmentDeviceInfo")
+        </div>
+
+        <!-- 网络通信配置 -->
+        <div v-show="currentStep === 1">
+            @await Html.PartialAsync("_ConfigPartials/_EquipmentNetworkConfig")
+        </div>
+
+        <!-- 性能参数配置 -->
+        <div v-show="currentStep === 2">
+            @await Html.PartialAsync("_ConfigPartials/_EquipmentPerformance")
+        </div>
+
+        <!-- SVID映射配置 -->
+        <div v-show="currentStep === 3">
+            @await Html.PartialAsync("_ConfigPartials/_EquipmentSvidMapping")
+        </div>
+
+        <!-- 报告和事件配置 -->
+        <div v-show="currentStep === 4">
+            @await Html.PartialAsync("_ConfigPartials/_EquipmentReports")
+        </div>
+    </div>
+
+    <!-- 步骤导航 -->
+    <div class="step-navigation">
+        <el-button onclick="prevStep" :disabled="currentStep === 0">
+            <el-icon><ArrowLeft /></el-icon>上一步
+        </el-button>
+        <el-button onclick="nextStep" :disabled="currentStep === 4" type="primary">
+            下一步<el-icon><ArrowRight /></el-icon>
+        </el-button>
+        <div style="flex: 1; text-align: center;">
+            <el-tag>步骤 {{ currentStep + 1 }} / 5</el-tag>
+        </div>
+        <el-button onclick="skipToSave" type="success" v-if="currentStep < 4">
+            <el-icon><Check /></el-icon>跳转保存
+        </el-button>
+    </div>
+</div>
+
+@* @section Scripts {
+    <script>
+        // 初始化数据
+        window.equipmentConfigData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EquipmentConfig));
+        window.systemStatus = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SystemStatus));
+        window.validationErrors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ValidationErrors));
+    </script>
+    <script src="~/js/config/equipment-config.js"></script>
+} *@

@@ -1,0 +1,81 @@
+@{
+    Layout = "_Layout";
+}
+
+<div id="config-app" class="config-container">
+    <!-- 侧边导航 -->
+    <aside class="config-sidebar">
+        <el-menu :default-active="activeMenu" class="config-menu" onselect="handleMenuSelect">
+            <el-menu-item index="overview">
+                <el-icon><Setting /></el-icon>
+                <span>配置总览</span>
+            </el-menu-item>
+            <el-menu-item index="plc">
+                <el-icon><Connection /></el-icon>
+                <span>PLC配置</span>
+            </el-menu-item>
+            <el-menu-item index="equipment">
+                <el-icon><Monitor /></el-icon>
+                <span>设备配置</span>
+            </el-menu-item>
+        </el-menu>
+    </aside>
+
+    <!-- 主配置区域 -->
+    <main class="config-main">
+        <!-- 页面头部 -->
+        <header class="config-header">
+            <div class="header-left">
+                <h1>@ViewData["ConfigTitle"]</h1>
+                <el-tag v-if="systemStatus" :type="systemStatus.online ? 'success' : 'danger'" size="small">
+                    {{ systemStatus.online ? '在线' : '离线' }}
+                </el-tag>
+            </div>
+            <div class="config-actions">
+                @await RenderSectionAsync("HeaderActions", required: false)
+            </div>
+        </header>
+
+        <!-- 配置内容 -->
+        <section class="config-content">
+            @RenderBody()
+        </section>
+    </main>
+</div>
+@await RenderSectionAsync("Scripts", required: false)
+<script>
+// 配置布局应用
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            activeMenu: this.getCurrentMenu(),
+            systemStatus: {
+                online: true,
+                lastUpdate: new Date()
+            }
+        };
+    },
+    mounted() {
+        registerIcons(this);
+    },
+    methods: {
+        getCurrentMenu() {
+            const path = window.location.pathname.toLowerCase();
+            if (path.includes('plcconfig')) return 'plc';
+            if (path.includes('equipmentconfig')) return 'equipment';
+            return 'overview';
+        },
+        
+        handleMenuSelect(key) {
+            this.activeMenu = key;
+            this.navigateTo(key === 'overview' ? '/Config' : key === 'plc' ? '/Config/PLCConfig' : '/Config/EquipmentConfig');
+        },
+        
+        navigateTo(url) {
+            window.location.href = url;
+        }
+    }
+}).use(ElementPlus).mount('#config-app');
+</script>

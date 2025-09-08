@@ -1,0 +1,64 @@
+@using SHEquipmentSystem.ViewModels
+@model PLCConfigViewModel
+@{
+    ViewData["Title"] = "PLC配置";
+    ViewData["ConfigTitle"] = "PLC通信配置";
+    Layout = "_ConfigLayout";
+}
+
+@section HeaderActions {
+    <el-button type="primary" onclick="savePLCConfig" :loading="saving">
+        <el-icon><Check /></el-icon>保存配置
+    </el-button>
+    <el-button onclick="testConnection" :loading="testing">
+        <el-icon><Connection /></el-icon>测试连接
+    </el-button>
+    <el-button onclick="resetConfig">
+        <el-icon><RefreshLeft /></el-icon>重置
+    </el-button>
+}
+
+<div id="plc-config-app">
+    <!-- 连接状态显示 -->
+    <el-alert
+        :title="connectionStatus.title"
+        :type="connectionStatus.type"
+        :description="connectionStatus.description"
+        show-icon
+        :closable="false"
+        style="margin-bottom: 20px;">
+    </el-alert>
+
+    <!-- 配置表单区域 -->
+    <el-tabs v-model="activeTab" class="config-tabs">
+        <!-- 基础连接配置 -->
+        <el-tab-pane label="基础连接" name="basic">
+            @await Html.PartialAsync("_ConfigPartials/_PLCBasicForm")
+        </el-tab-pane>
+
+        <!-- 超时参数配置 -->
+        <el-tab-pane label="超时参数" name="timeout">
+            @await Html.PartialAsync("_ConfigPartials/_PLCTimeoutForm")
+        </el-tab-pane>
+
+        <!-- 数据块管理 -->
+        <el-tab-pane label="数据块管理" name="datablock">
+            @await Html.PartialAsync("_ConfigPartials/_PLCDataBlocks")
+        </el-tab-pane>
+
+        <!-- 高级设置 -->
+        <el-tab-pane label="高级设置" name="advanced">
+            @await Html.PartialAsync("_ConfigPartials/_PLCAdvancedForm")
+        </el-tab-pane>
+    </el-tabs>
+</div>
+
+@section Scripts {
+    <script>
+        // 初始化数据传递
+        window.plcConfigData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PLCConfig));
+        window.connectionStatus = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.IsConnected));
+        window.validationErrors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ValidationErrors));
+    </script>
+    <script src="~/js/config/plc-config.js"></script>
+}

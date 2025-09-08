@@ -1,0 +1,69 @@
+<el-card class="config-card" header="基础连接配置">
+    <el-form :model="plcConfig" :rules="basicRules" ref="basicForm" label-width="120px">
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="IP地址" prop="ipAddress">
+                    <el-input
+                        v-model="plcConfig.ipAddress"
+                        placeholder="请输入PLC IP地址"
+                        :disabled="isConnected">
+                        <template #prepend>
+                            <el-icon><Connection /></el-icon>
+                        </template>
+                    </el-input>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="端口号" prop="port">
+                    <el-input-number
+                        v-model="plcConfig.port"
+                        :min="1"
+                        :max="65535"
+                        :disabled="isConnected"
+                        style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="网络号" prop="networkNumber">
+                    <el-input-number
+                        v-model="plcConfig.networkNumber"
+                        :min="0"
+                        :max="255"
+                        style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="站号" prop="stationNumber">
+                    <el-input-number
+                        v-model="plcConfig.stationNumber"
+                        :min="0"
+                        :max="255"
+                        style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 连接状态指示 -->
+        <el-row>
+            <el-col :span="24">
+                <el-form-item label="连接状态">
+                    <el-tag :type="isConnected ? 'success' : 'danger'" size="large">
+                        <el-icon>
+                            <component :is="isConnected ? 'CircleCheckFilled' : 'CircleCloseFilled'"></component>
+                        </el-icon>
+                        {{ isConnected ? '已连接' : '未连接' }}
+                    </el-tag>
+                    <span v-if="lastTestTime" style="margin-left: 10px; color: #909399; font-size: 12px;">
+                        上次测试: {{ formatTime(lastTestTime) }}
+                    </span>
+                </el-form-item>
+            </el-col>
+        </el-row>
+    </el-form>
+</el-card>

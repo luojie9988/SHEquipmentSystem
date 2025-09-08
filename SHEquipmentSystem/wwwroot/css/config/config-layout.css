@@ -1,0 +1,682 @@
+/* 配置系统全局样式 */
+
+/* ========== 布局样式 ========== */
+
+/* 导航栏样式 */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar-brand i {
+    font-size: 20px;
+}
+
+/* 主内容区域 */
+.main-content {
+    min-height: calc(100vh - 60px);
+    background: #f5f7fa;
+}
+
+/* 配置容器 */
+.config-container {
+    display: flex;
+    height: calc(100vh - 60px);
+    background-color: #f5f7fa;
+}
+
+/* 侧边栏 */
+.config-sidebar {
+    width: 260px;
+    background: white;
+    border-right: 1px solid #e4e7ed;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+    overflow-y: auto;
+}
+
+.config-menu {
+    height: 100%;
+    border: none;
+}
+
+.config-menu .el-menu-item {
+    height: 50px;
+    line-height: 50px;
+    padding: 0 20px !important;
+    margin: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.config-menu .el-menu-item:hover {
+    background: #ecf5ff;
+    color: #409eff;
+}
+
+.config-menu .el-menu-item.is-active {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    color: white;
+}
+
+/* 主配置区域 */
+.config-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 页面头部 */
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: white;
+    border-bottom: 1px solid #e4e7ed;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.config-header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #303133;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.config-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.config-actions .el-button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* 配置内容区域 */
+.config-content {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+    background: #f5f7fa;
+}
+
+/* ========== 卡片样式 ========== */
+
+/* 配置卡片 */
+.config-card {
+    margin-bottom: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e4e7ed;
+    transition: all 0.3s ease;
+}
+
+.config-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.config-card .el-card__header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid #e4e7ed;
+    font-weight: 600;
+    color: #303133;
+    border-radius: 12px 12px 0 0;
+}
+
+.config-card .el-card__body {
+    padding: 25px;
+}
+
+/* ========== 表单样式 ========== */
+
+/* 表单项间距 */
+.el-form-item {
+    margin-bottom: 20px;
+}
+
+.el-form-item__label {
+    font-weight: 500;
+    color: #606266;
+}
+
+/* 帮助文本 */
+.form-help-text {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* 输入框样式 */
+.el-input__inner,
+.el-textarea__inner {
+    border-radius: 6px;
+    border: 1px solid #dcdfe6;
+    transition: all 0.3s ease;
+}
+
+.el-input__inner:focus,
+.el-textarea__inner:focus {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+/* ========== 标签页样式 ========== */
+
+.config-tabs {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.config-tabs .el-tabs__header {
+    margin-bottom: 25px;
+}
+
+.config-tabs .el-tabs__nav-wrap {
+    padding: 0 10px;
+}
+
+.config-tabs .el-tabs__item {
+    height: 45px;
+    line-height: 45px;
+    padding: 0 20px;
+    margin-right: 10px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.config-tabs .el-tabs__item:hover {
+    background: #ecf5ff;
+    color: #409eff;
+}
+
+.config-tabs .el-tabs__item.is-active {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    color: white;
+}
+
+/* ========== 步骤条样式 ========== */
+
+.config-steps {
+    margin-bottom: 30px;
+    padding: 25px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.config-steps .el-step__title {
+    font-weight: 600;
+}
+
+.config-steps .el-step__description {
+    color: #909399;
+}
+
+/* 步骤导航 */
+.step-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: white;
+    border-top: 1px solid #e4e7ed;
+    margin-top: 25px;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+}
+
+.step-navigation .el-button {
+    padding: 10px 25px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* ========== 表格样式 ========== */
+
+.el-table {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.el-table th {
+    background: #f8f9fa;
+    color: #606266;
+    font-weight: 600;
+}
+
+.el-table tr:hover td {
+    background: #f0f9ff !important;
+}
+
+/* 表格操作按钮 */
+.el-table .el-button-group .el-button {
+    padding: 5px 8px;
+    margin: 0 1px;
+    border-radius: 4px;
+}
+
+/* ========== 统计卡片样式 ========== */
+
+.el-statistic {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.el-statistic:hover {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    transform: translateY(-2px);
+}
+
+.performance-metric {
+    text-align: center;
+    margin: 8px 0;
+    padding: 15px;
+    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+    transition: all 0.3s ease;
+}
+
+.performance-metric:hover {
+    border-color: #409eff;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+}
+
+.performance-metric .el-progress {
+    margin-top: 10px;
+}
+
+.metric-desc {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 8px;
+}
+
+/* ========== 工具栏样式 ========== */
+
+.mapping-toolbar,
+.datablock-toolbar,
+.section-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+}
+
+.mapping-toolbar .el-button,
+.datablock-toolbar .el-button,
+.section-toolbar .el-button {
+    margin-right: 8px;
+    border-radius: 6px;
+}
+
+/* ========== 批量操作卡片 ========== */
+
+.batch-operation-card {
+    height: 320px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+    transition: all 0.3s ease;
+}
+
+.batch-operation-card:hover {
+    border-color: #409eff;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+}
+
+.batch-operation-card .el-card__header {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    color: white;
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
+}
+
+/* ========== 概览卡片样式 ========== */
+
+.overview-card {
+    height: 380px;
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+    transition: all 0.3s ease;
+}
+
+.overview-card:hover {
+    border-color: #409eff;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+}
+
+.overview-card h4 {
+    margin: 15px 0 10px 0;
+    color: #303133;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ========== 提示和帮助样式 ========== */
+
+.mapping-help,
+.datablock-help {
+    line-height: 1.6;
+}
+
+.mapping-help ul,
+.datablock-help ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.mapping-help li,
+.datablock-help li {
+    margin: 5px 0;
+    line-height: 1.6;
+}
+
+.mapping-help h4,
+.datablock-help h4 {
+    margin: 15px 0 10px 0;
+    color: #303133;
+    font-weight: 600;
+}
+
+/* ========== 分隔线样式 ========== */
+
+.el-divider {
+    margin: 25px 0;
+}
+
+.el-divider--horizontal {
+    background: linear-gradient(90deg, transparent, #e4e7ed, transparent);
+}
+
+.el-divider__text {
+    background: white;
+    padding: 0 15px;
+    font-weight: 600;
+    color: #606266;
+}
+
+/* ========== 状态标签样式 ========== */
+
+.el-tag {
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.el-tag--primary {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    border-color: #409eff;
+}
+
+.el-tag--success {
+    background: linear-gradient(135deg, #67c23a, #5daf34);
+    border-color: #67c23a;
+}
+
+.el-tag--warning {
+    background: linear-gradient(135deg, #e6a23c, #cf9236);
+    border-color: #e6a23c;
+}
+
+.el-tag--danger {
+    background: linear-gradient(135deg, #f56c6c, #dd6161);
+    border-color: #f56c6c;
+}
+
+/* ========== 按钮样式 ========== */
+
+.el-button {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.el-button--primary {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    border-color: #409eff;
+}
+
+.el-button--primary:hover {
+    background: linear-gradient(135deg, #66b1ff, #5dade2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.el-button--success {
+    background: linear-gradient(135deg, #67c23a, #5daf34);
+    border-color: #67c23a;
+}
+
+.el-button--success:hover {
+    background: linear-gradient(135deg, #85ce61, #7bc143);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(103, 194, 58, 0.3);
+}
+
+.el-button--warning {
+    background: linear-gradient(135deg, #e6a23c, #cf9236);
+    border-color: #e6a23c;
+}
+
+.el-button--danger {
+    background: linear-gradient(135deg, #f56c6c, #dd6161);
+    border-color: #f56c6c;
+}
+
+/* ========== 进度条样式 ========== */
+
+.el-progress-bar__outer {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.el-progress-bar__inner {
+    border-radius: 10px;
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+}
+
+/* ========== 滑块样式 ========== */
+
+.el-slider__runway {
+    border-radius: 3px;
+}
+
+.el-slider__bar {
+    background: linear-gradient(135deg, #409eff, #36a3f7);
+    border-radius: 3px;
+}
+
+.el-slider__button {
+    border: 2px solid #409eff;
+    background: white;
+}
+
+/* ========== 响应式设计 ========== */
+
+@media (max-width: 1200px) {
+    .config-container {
+        flex-direction: column;
+    }
+    
+    .config-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+    }
+    
+    .config-main {
+        height: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .config-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+        padding: 15px;
+    }
+    
+    .config-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .config-content {
+        padding: 15px;
+    }
+    
+    .step-navigation {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .step-navigation .el-button {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    .mapping-toolbar,
+    .datablock-toolbar,
+    .section-toolbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .batch-operation-card {
+        height: auto;
+        min-height: 250px;
+    }
+    
+    .overview-card {
+        height: auto;
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .config-header h1 {
+        font-size: 20px;
+    }
+    
+    .config-actions .el-button {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .navbar {
+        padding: 0 10px;
+    }
+    
+    .navbar-brand {
+        font-size: 16px;
+    }
+    
+    .config-content {
+        padding: 10px;
+    }
+    
+    .config-card .el-card__body {
+        padding: 15px;
+    }
+}
+
+/* ========== 动画效果 ========== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.config-card,
+.config-tabs,
+.config-steps {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* ========== 滚动条样式 ========== */
+
+.config-content::-webkit-scrollbar,
+.config-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.config-content::-webkit-scrollbar-track,
+.config-sidebar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.config-content::-webkit-scrollbar-thumb,
+.config-sidebar::-webkit-scrollbar-thumb {
+    background: #c0c4cc;
+    border-radius: 3px;
+}
+
+.config-content::-webkit-scrollbar-thumb:hover,
+.config-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #909399;
+}
+
+/* ========== 打印样式 ========== */
+
+@media print {
+    .config-sidebar,
+    .config-actions,
+    .step-navigation {
+        display: none;
+    }
+    
+    .config-main {
+        width: 100%;
+    }
+    
+    .config-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}

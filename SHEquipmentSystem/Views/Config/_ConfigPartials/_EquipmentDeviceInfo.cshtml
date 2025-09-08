@@ -1,0 +1,203 @@
+<el-card class="config-card" header="设备基本信息">
+    <el-form :model="equipmentConfig.equipment" :rules="deviceRules" ref="deviceForm" label-width="140px">
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="设备ID" prop="deviceId">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.deviceId"
+                        :min="1"
+                        :max="9999"
+                        style="width: 100%"
+                        placeholder="请输入设备ID">
+                    </el-input-number>
+                    <div class="form-help-text">唯一的设备标识符，范围1-9999</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="设备名称" prop="equipmentName">
+                    <el-input
+                        v-model="equipmentConfig.equipment.equipmentName"
+                        placeholder="请输入设备名称"
+                        maxlength="20"
+                        show-word-limit>
+                        <template #prepend>
+                            <el-icon><Monitor /></el-icon>
+                        </template>
+                    </el-input>
+                    <div class="form-help-text">在网络中显示的设备名称</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="型号名称" prop="modelName">
+                    <el-input
+                        v-model="equipmentConfig.equipment.modelName"
+                        placeholder="请输入型号名称"
+                        maxlength="20"
+                        show-word-limit>
+                        <template #prepend>
+                            <el-icon><Box /></el-icon>
+                        </template>
+                    </el-input>
+                    <div class="form-help-text">设备型号标识，用于兼容性检查</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="软件版本" prop="softwareRevision">
+                    <el-input
+                        v-model="equipmentConfig.equipment.softwareRevision"
+                        placeholder="例如: V1.0.0">
+                        <template #prepend>
+                            <el-icon><Promotion /></el-icon>
+                        </template>
+                    </el-input>
+                    <div class="form-help-text">当前软件版本号</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 工作模式配置 -->
+        <el-divider content-position="left">通信模式</el-divider>
+        <el-row>
+            <el-col :span="24">
+                <el-form-item label="工作模式" prop="isActive">
+                    <el-radio-group v-model="equipmentConfig.equipment.isActive" size="large">
+                        <el-radio :label="false" class="mode-radio">
+                            <div class="radio-content">
+                                <el-icon size="20"><Monitor /></el-icon>
+                                <div class="radio-text">
+                                    <div class="radio-title">Passive模式 (被动连接)</div>
+                                    <div class="radio-desc">设备作为服务器，等待主机连接</div>
+                                </div>
+                            </div>
+                        </el-radio>
+                        <el-radio :label="true" class="mode-radio">
+                            <div class="radio-content">
+                                <el-icon size="20"><Connection /></el-icon>
+                                <div class="radio-text">
+                                    <div class="radio-title">Active模式 (主动连接)</div>
+                                    <div class="radio-desc">设备主动连接到主机</div>
+                                </div>
+                            </div>
+                        </el-radio>
+                    </el-radio-group>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 设备状态显示 -->
+        <el-divider content-position="left">设备状态</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="8">
+                <el-statistic title="运行时间" :value="deviceUptime" suffix="小时">
+                    <template #prefix>
+                        <el-icon><Timer /></el-icon>
+                    </template>
+                </el-statistic>
+            </el-col>
+            <el-col :span="8">
+                <el-statistic title="连接状态" :value="connectionCount" suffix="个连接">
+                    <template #prefix>
+                        <el-icon><Connection /></el-icon>
+                    </template>
+                </el-statistic>
+            </el-col>
+            <el-col :span="8">
+                <el-statistic title="内存使用" :value="memoryUsage" suffix="MB">
+                    <template #prefix>
+                        <el-icon><Monitor /></el-icon>
+                    </template>
+                </el-statistic>
+            </el-col>
+        </el-row>
+
+        <!-- 设备描述和备注 -->
+        <el-divider content-position="left">设备描述</el-divider>
+        <el-row>
+            <el-col :span="24">
+                <el-form-item label="设备描述">
+                    <el-input
+                        v-model="equipmentConfig.equipment.description"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="请输入设备描述信息"
+                        maxlength="200"
+                        show-word-limit>
+                    </el-input>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 配置确认 -->
+        <el-row>
+            <el-col :span="24">
+                <el-alert
+                    title="配置提醒"
+                    type="info"
+                    :closable="false"
+                    show-icon>
+                    <template #default>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li>设备ID在网络中必须唯一</li>
+                            <li>工作模式变更需要重启服务生效</li>
+                            <li>设备名称将显示在主机的设备列表中</li>
+                        </ul>
+                    </template>
+                </el-alert>
+            </el-col>
+        </el-row>
+    </el-form>
+</el-card>
+
+<style scoped>
+.form-help-text {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+}
+
+.mode-radio {
+    display: block;
+    margin: 10px 0;
+    padding: 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.mode-radio:hover {
+    border-color: #409eff;
+    background-color: #f0f9ff;
+}
+
+.mode-radio.is-checked {
+    border-color: #409eff;
+    background-color: #f0f9ff;
+}
+
+.radio-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.radio-text .radio-title {
+    font-weight: 600;
+    color: #303133;
+}
+
+.radio-text .radio-desc {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+}
+
+.el-statistic {
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+</style>

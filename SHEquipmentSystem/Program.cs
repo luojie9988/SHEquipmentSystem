@@ -1,3 +1,4 @@
+using DiceEquipmentSystem.Core.Configuration;
 using DiceEquipmentSystem.Core.StateMachine;
 using DiceEquipmentSystem.PLC.Interfaces;
 using DiceEquipmentSystem.PLC.Mapping;
@@ -36,6 +37,17 @@ namespace SHEquipmentSystem
 
             var builder = WebApplication.CreateBuilder(args);
             builder.Host.UseSerilog();
+
+            // 配置系统设置
+            builder.Services.Configure<EquipmentSystemConfiguration>(
+                builder.Configuration.GetSection("EquipmentSystem"));
+            // 配置JSON序列化选项
+            builder.Services.ConfigureHttpJsonOptions(options =>
+            {
+                options.SerializerOptions.PropertyNamingPolicy = null;
+                options.SerializerOptions.WriteIndented = true;
+            });
+
             // 状态机
             builder.Services.AddSingleton<ProcessStateMachine>();
 
@@ -65,18 +77,22 @@ namespace SHEquipmentSystem
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
-
+            // 添加内存缓存
+            builder.Services.AddMemoryCache();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
+                app.UseHsts();
             }
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            // 启用CORS（如配置）
+            app.UseCors("AllowLocalhost");
+            //app.UseSession();
             app.UseAuthorization();
 
             app.MapControllerRoute(

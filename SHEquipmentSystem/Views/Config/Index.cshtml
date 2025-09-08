@@ -1,0 +1,333 @@
+@using SHEquipmentSystem.ViewModels
+@model ConfigOverviewViewModel
+@{
+    ViewData["Title"] = "配置总览";
+    ViewData["ConfigTitle"] = "配置管理总览";
+    Layout = "_ConfigLayout";
+}
+
+@section HeaderActions {
+    <el-button type="primary" onclick="refreshStatus">
+        <el-icon><Refresh /></el-icon>刷新状态
+    </el-button>
+    <el-button onclick="exportAllConfigs">
+        <el-icon><Download /></el-icon>导出所有配置
+    </el-button>
+    <el-button onclick="showSystemInfo">
+        <el-icon><InfoFilled /></el-icon>系统信息
+    </el-button>
+}
+
+<div id="config-overview-app">
+    <!-- 系统状态卡片 -->
+    <el-row :gutter="24" style="margin-bottom: 24px;">
+        <el-col :span="6">
+            <el-card class="status-overview-card">
+                <el-statistic title="PLC连接状态" :value="plcConnected ? '已连接' : '未连接'">
+                    <template #prefix>
+                        <el-icon :style="{ color: plcConnected ? '#67c23a' : '#f56c6c' }">
+                            <component :is="plcConnected ? 'CircleCheckFilled' : 'CircleCloseFilled'"></component>
+                        </el-icon>
+                    </template>
+                </el-statistic>
+                <div class="status-desc">
+                    <span :class="plcConnected ? 'status-success' : 'status-error'">
+                        {{ plcConnected ? '通信正常' : '连接异常' }}
+                    </span>
+                </div>
+            </el-card>
+        </el-col>
+        
+        <el-col :span="6">
+            <el-card class="status-overview-card">
+                <el-statistic title="设备状态" :value="equipmentStatus">
+                    <template #prefix>
+                        <el-icon style="color: #409eff;"><Monitor /></el-icon>
+                    </template>
+                </el-statistic>
+                <div class="status-desc">
+                    <span class="status-normal">系统运行正常</span>
+                </div>
+            </el-card>
+        </el-col>
+        
+        <el-col :span="6">
+            <el-card class="status-overview-card">
+                <el-statistic title="运行时间" :value="systemUptime" suffix="小时">
+                    <template #prefix>
+                        <el-icon style="color: #e6a23c;"><Timer /></el-icon>
+                    </template>
+                </el-statistic>
+                <div class="status-desc">
+                    <span class="status-normal">持续运行</span>
+                </div>
+            </el-card>
+        </el-col>
+        
+        <el-col :span="6">
+            <el-card class="status-overview-card">
+                <el-statistic title="配置版本" value="V1.0.0">
+                    <template #prefix>
+                        <el-icon style="color: #909399;"><Document /></el-icon>
+                    </template>
+                </el-statistic>
+                <div class="status-desc">
+                    <span class="status-normal">最新版本</span>
+                </div>
+            </el-card>
+        </el-col>
+    </el-row>
+
+    <!-- 配置模块快速访问 -->
+    <el-row :gutter="24" style="margin-bottom: 24px;">
+        <el-col :span="12">
+            <el-card class="quick-access-card">
+                <template #header>
+                    <div class="card-header">
+                        <span>PLC通信配置</span>
+                        <el-tag :type="plcConfigStatus.type" size="small">{{ plcConfigStatus.text }}</el-tag>
+                    </div>
+                </template>
+                
+                <div class="config-summary">
+                    <el-descriptions :column="2" size="small">
+                        <el-descriptions-item label="连接地址">{{ plcConfig.ipAddress }}:{{ plcConfig.port }}</el-descriptions-item>
+                        <el-descriptions-item label="连接状态">
+                            <el-tag :type="plcConnected ? 'success' : 'danger'" size="small">
+                                {{ plcConnected ? '已连接' : '未连接' }}
+                            </el-tag>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="网络号">{{ plcConfig.networkNumber }}</el-descriptions-item>
+                        <el-descriptions-item label="站号">{{ plcConfig.stationNumber }}</el-descriptions-item>
+                        <el-descriptions-item label="数据块数">{{ plcConfig.dataBlocks.length }}</el-descriptions-item>
+                        <el-descriptions-item label="轮询间隔">{{ plcConfig.pollingInterval }}ms</el-descriptions-item>
+                    </el-descriptions>
+                </div>
+                
+                <div class="card-actions">
+                    <el-button type="primary" onclick="goToConfig('plc')" size="small">
+                        <el-icon><Setting /></el-icon>配置PLC
+                    </el-button>
+                    <el-button onclick="testPlcConnection" :loading="testingPlc" size="small">
+                        <el-icon><Connection /></el-icon>测试连接
+                    </el-button>
+                </div>
+            </el-card>
+        </el-col>
+
+        <el-col :span="12">
+            <el-card class="quick-access-card">
+                <template #header>
+                    <div class="card-header">
+                        <span>设备系统配置</span>
+                        <el-tag :type="equipmentConfigStatus.type" size="small">{{ equipmentConfigStatus.text }}</el-tag>
+                    </div>
+                </template>
+                
+                <div class="config-summary">
+                    <el-descriptions :column="2" size="small">
+                        <el-descriptions-item label="设备ID">{{ equipmentConfig.equipment.deviceId }}</el-descriptions-item>
+                        <el-descriptions-item label="设备名称">{{ equipmentConfig.equipment.equipmentName }}</el-descriptions-item>
+                        <el-descriptions-item label="型号">{{ equipmentConfig.equipment.modelName }}</el-descriptions-item>
+                        <el-descriptions-item label="软件版本">{{ equipmentConfig.equipment.softwareRevision }}</el-descriptions-item>
+                        <el-descriptions-item label="工作模式">{{ equipmentConfig.equipment.isActive ? 'Active' : 'Passive' }}</el-descriptions-item>
+                        <el-descriptions-item label="监听端口">{{ equipmentConfig.equipment.port }}</el-descriptions-item>
+                    </el-descriptions>
+                </div>
+                
+                <div class="card-actions">
+                    <el-button type="primary" onclick="goToConfig('equipment')" size="small">
+                        <el-icon><Monitor /></el-icon>配置设备
+                    </el-button>
+                    <el-button onclick="validateConfigs" :loading="validating" size="small">
+                        <el-icon><Warning /></el-icon>验证配置
+                    </el-button>
+                </div>
+            </el-card>
+        </el-col>
+    </el-row>
+
+    <!-- 配置统计和监控 -->
+    <el-row :gutter="24" style="margin-bottom: 24px;">
+        <!-- 配置统计 -->
+        <el-col :span="8">
+            <el-card class="statistics-card">
+                <template #header>
+                    <span>配置统计</span>
+                </template>
+                
+                <div class="statistics-content">
+                    <div class="stat-item">
+                        <div class="stat-label">SVID映射数量</div>
+                        <div class="stat-value">{{ statisticsData.svidMappings }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">默认报告数</div>
+                        <div class="stat-value">{{ statisticsData.defaultReports }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">事件链接数</div>
+                        <div class="stat-value">{{ statisticsData.eventLinks }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">数据块数量</div>
+                        <div class="stat-value">{{ statisticsData.dataBlocks }}</div>
+                    </div>
+                </div>
+            </el-card>
+        </el-col>
+
+        <!-- 系统资源监控 -->
+        <el-col :span="8">
+            <el-card class="monitor-card">
+                <template #header>
+                    <span>系统监控</span>
+                </template>
+                
+                <div class="monitor-content">
+                    <div class="monitor-item">
+                        <div class="monitor-label">CPU使用率</div>
+                        <el-progress :percentage="systemMetrics.cpuUsage" :color="getCpuColor(systemMetrics.cpuUsage)"></el-progress>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">内存使用率</div>
+                        <el-progress :percentage="systemMetrics.memoryUsage" :color="getMemoryColor(systemMetrics.memoryUsage)"></el-progress>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">磁盘使用率</div>
+                        <el-progress :percentage="systemMetrics.diskUsage" :color="getDiskColor(systemMetrics.diskUsage)"></el-progress>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">网络延迟</div>
+                        <div class="network-latency">{{ systemMetrics.networkLatency }}ms</div>
+                    </div>
+                </div>
+            </el-card>
+        </el-col>
+
+        <!-- 最近活动 -->
+        <el-col :span="8">
+            <el-card class="activity-card">
+                <template #header>
+                    <span>最近活动</span>
+                </template>
+                
+                <el-timeline class="activity-timeline">
+                    <el-timeline-item
+                        v-for="activity in recentActivities"
+                        :key="activity.id"
+                        :timestamp="activity.time"
+                        :type="activity.type"
+                        size="small">
+                        {{ activity.description }}
+                    </el-timeline-item>
+                </el-timeline>
+            </el-card>
+        </el-col>
+    </el-row>
+
+    <!-- 配置操作面板 -->
+    <el-row>
+        <el-col :span="24">
+            <el-card class="operations-card">
+                <template #header>
+                    <span>配置管理操作</span>
+                </template>
+                
+                <el-row :gutter="16">
+                    <el-col :span="8">
+                        <div class="operation-group">
+                            <h4>备份与恢复</h4>
+                            <el-space direction="vertical" style="width: 100%;">
+                                <el-button onclick="backupConfigs" style="width: 100%;">
+                                    <el-icon><FolderAdd /></el-icon>备份所有配置
+                                </el-button>
+                                <el-button onclick="restoreConfigs" style="width: 100%;">
+                                    <el-icon><FolderOpened /></el-icon>恢复配置
+                                </el-button>
+                                <el-button onclick="resetToDefaults" type="danger" style="width: 100%;">
+                                    <el-icon><RefreshLeft /></el-icon>重置为默认
+                                </el-button>
+                            </el-space>
+                        </div>
+                    </el-col>
+                    
+                    <el-col :span="8">
+                        <div class="operation-group">
+                            <h4>导入导出</h4>
+                            <el-space direction="vertical" style="width: 100%;">
+                                <el-button onclick="exportConfigs" style="width: 100%;">
+                                    <el-icon><Download /></el-icon>导出配置
+                                </el-button>
+                                <el-upload
+                                    :show-file-list="false"
+                                    :before-upload="importConfigs"
+                                    accept=".json"
+                                    style="width: 100%;">
+                                    <el-button style="width: 100%;">
+                                        <el-icon><Upload /></el-icon>导入配置
+                                    </el-button>
+                                </el-upload>
+                                <el-button onclick="downloadTemplate" style="width: 100%;">
+                                    <el-icon><Document /></el-icon>下载模板
+                                </el-button>
+                            </el-space>
+                        </div>
+                    </el-col>
+                    
+                    <el-col :span="8">
+                        <div class="operation-group">
+                            <h4>系统维护</h4>
+                            <el-space direction="vertical" style="width: 100%;">
+                                <el-button onclick="cleanupLogs" style="width: 100%;">
+                                    <el-icon><Delete /></el-icon>清理日志
+                                </el-button>
+                                <el-button onclick="optimizeSystem" style="width: 100%;">
+                                    <el-icon><Magic /></el-icon>系统优化
+                                </el-button>
+                                <el-button onclick="restartService" type="warning" style="width: 100%;">
+                                    <el-icon><RefreshRight /></el-icon>重启服务
+                                </el-button>
+                            </el-space>
+                        </div>
+                    </el-col>
+                </el-row>
+            </el-card>
+        </el-col>
+    </el-row>
+
+    <!-- 系统信息对话框 -->
+    <el-dialog
+        v-model="showSystemInfoDialog"
+        title="系统信息"
+        width="600px"
+        :before-close="closeSystemInfoDialog">
+        
+        <el-descriptions :column="2" border>
+            <el-descriptions-item label="操作系统">{{ systemInfo.os }}</el-descriptions-item>
+            <el-descriptions-item label="运行时版本">{{ systemInfo.runtime }}</el-descriptions-item>
+            <el-descriptions-item label="主机名">{{ systemInfo.hostname }}</el-descriptions-item>
+            <el-descriptions-item label="IP地址">{{ systemInfo.ipAddress }}</el-descriptions-item>
+            <el-descriptions-item label="启动时间">{{ systemInfo.startTime }}</el-descriptions-item>
+            <el-descriptions-item label="运行时间">{{ systemInfo.uptime }}</el-descriptions-item>
+            <el-descriptions-item label="总内存">{{ systemInfo.totalMemory }}</el-descriptions-item>
+            <el-descriptions-item label="可用内存">{{ systemInfo.availableMemory }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <template #footer>
+            <el-button onclick="closeSystemInfoDialog">关闭</el-button>
+        </template>
+    </el-dialog>
+</div>
+
+@* @section Scripts {
+    <script>
+        // 初始化数据
+        window.configOverviewData = {
+            plcStatus: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PLCStatus)),
+            equipmentStatus: '@Model.EquipmentStatus',
+            lastUpdateTime: '@Model.LastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss")'
+        };
+    </script>
+    <script src="~/js/config/config-overview.js"></script>
+} *@

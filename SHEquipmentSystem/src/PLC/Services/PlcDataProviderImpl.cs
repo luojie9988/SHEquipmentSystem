@@ -728,13 +728,13 @@ namespace DiceEquipmentSystem.PLC.Services
                 {
                     IpAddress = plcConfig.IpAddress,
                     Port = plcConfig.Port,
-                    ConnectTimeOut = plcConfig.ConnectTimeout,
+                    ConnectTimeOut = plcConfig.ConnectionTimeout,
                     ReceiveTimeOut = plcConfig.ReceiveTimeout
                 };
 
                 // 设置网络编号和站号
-                _mcClient.NetworkNumber = plcConfig.NetworkNumber;
-                _mcClient.NetworkStationNumber = plcConfig.StationNumber;
+                _mcClient.NetworkNumber = (byte)plcConfig.NetworkNumber;
+                _mcClient.NetworkStationNumber = (byte)plcConfig.StationNumber;
 
                 var result = await _mcClient.ConnectServerAsync();
 

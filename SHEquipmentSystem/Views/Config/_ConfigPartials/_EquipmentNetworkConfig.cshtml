@@ -1,0 +1,261 @@
+<el-card class="config-card" header="网络通信配置">
+    <el-form :model="equipmentConfig.equipment" :rules="networkRules" ref="networkForm" label-width="150px">
+        <!-- 监听配置 -->
+        <el-divider content-position="left">监听配置</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="IP地址" prop="ipAddress">
+                    <el-input
+                        v-model="equipmentConfig.equipment.ipAddress"
+                        placeholder="0.0.0.0表示所有接口">
+                        <template #prepend>
+                            <el-icon><Connection /></el-icon>
+                        </template>
+                    </el-input>
+                    <div class="form-help-text">0.0.0.0 表示监听所有网络接口</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="端口号" prop="port">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.port"
+                        :min="1"
+                        :max="65535"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">SECS/GEM通信端口</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- HSMS超时配置 -->
+        <el-divider content-position="left">HSMS超时参数</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="T3超时(ms)" prop="t3">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.t3"
+                        :min="1000"
+                        :max="120000"
+                        :step="1000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">Reply Timeout - 消息回复超时</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="T5超时(ms)" prop="t5">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.t5"
+                        :min="1000"
+                        :max="240000"
+                        :step="1000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">Connect Separation Timeout</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="T6超时(ms)" prop="t6">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.t6"
+                        :min="1000"
+                        :max="240000"
+                        :step="1000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">Control Timeout - 控制超时</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="T7超时(ms)" prop="t7">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.t7"
+                        :min="1000"
+                        :max="240000"
+                        :step="1000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">Not Selected Timeout</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="T8超时(ms)" prop="t8">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.t8"
+                        :min="1000"
+                        :max="120000"
+                        :step="1000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">Network Intercharacter Timeout</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="LinkTest间隔(ms)" prop="linkTestInterval">
+                    <el-input-number
+                        v-model="equipmentConfig.equipment.linkTestInterval"
+                        :min="10000"
+                        :max="300000"
+                        :step="5000"
+                        style="width: 100%">
+                    </el-input-number>
+                    <div class="form-help-text">连接保活检测间隔</div>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 通信选项 -->
+        <el-divider content-position="left">通信选项</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="自动上线">
+                    <el-switch
+                        v-model="equipmentConfig.equipment.autoOnline"
+                        active-text="启用"
+                        inactive-text="禁用">
+                    </el-switch>
+                    <div class="form-help-text">连接建立后自动进入在线状态</div>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="默认控制状态">
+                    <el-select v-model="equipmentConfig.equipment.defaultControlState" style="width: 100%">
+                        <el-option label="离线(Offline)" value="Offline"></el-option>
+                        <el-option label="本地(OnlineLocal)" value="OnlineLocal"></el-option>
+                        <el-option label="远程(OnlineRemote)" value="OnlineRemote"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 安全设置 -->
+        <el-divider content-position="left">安全设置</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="12">
+                <el-form-item label="启用访问控制">
+                    <el-switch
+                        v-model="equipmentConfig.security.enableAccessControl"
+                        active-text="启用"
+                        inactive-text="禁用">
+                    </el-switch>
+                </el-form-item>
+            </el-col>
+            <el-col :span="12">
+                <el-form-item label="最大连接数">
+                    <el-input-number
+                        v-model="equipmentConfig.security.maxConnections"
+                        :min="1"
+                        :max="10"
+                        style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 允许的IP地址列表 -->
+        <el-row v-if="equipmentConfig.security.enableAccessControl">
+            <el-col :span="24">
+                <el-form-item label="允许的IP地址">
+                    <el-space direction="vertical" style="width: 100%;">
+                        <div v-for="(ip, index) in equipmentConfig.security.allowedIPs" :key="index" class="ip-item">
+                            <el-input
+                                v-model="equipmentConfig.security.allowedIPs[index]"
+                                placeholder="请输入IP地址"
+                                style="width: 200px;">
+                            </el-input>
+                            <el-button onclick="removeAllowedIP(index)" type="danger" size="small">
+                                <el-icon><Delete /></el-icon>
+                            </el-button>
+                        </div>
+                        <el-button onclick="addAllowedIP" type="primary" size="small">
+                            <el-icon><Plus /></el-icon>添加IP地址
+                        </el-button>
+                    </el-space>
+                </el-form-item>
+            </el-col>
+        </el-row>
+
+        <!-- 网络状态监控 -->
+        <el-divider content-position="left">网络状态</el-divider>
+        <el-row :gutter="24">
+            <el-col :span="8">
+                <el-card class="status-card">
+                    <el-statistic title="当前连接数" :value="networkStatus.activeConnections">
+                        <template #prefix>
+                            <el-icon style="color: #67c23a;"><Connection /></el-icon>
+                        </template>
+                    </el-statistic>
+                </el-card>
+            </el-col>
+            <el-col :span="8">
+                <el-card class="status-card">
+                    <el-statistic title="消息发送" :value="networkStatus.messagesSent">
+                        <template #prefix>
+                            <el-icon style="color: #409eff;"><Upload /></el-icon>
+                        </template>
+                    </el-statistic>
+                </el-card>
+            </el-col>
+            <el-col :span="8">
+                <el-card class="status-card">
+                    <el-statistic title="消息接收" :value="networkStatus.messagesReceived">
+                        <template #prefix>
+                            <el-icon style="color: #e6a23c;"><Download /></el-icon>
+                        </template>
+                    </el-statistic>
+                </el-card>
+            </el-col>
+        </el-row>
+
+        <!-- 配置说明 -->
+        <el-row style="margin-top: 20px;">
+            <el-col :span="24">
+                <el-alert
+                    title="HSMS超时参数说明"
+                    type="info"
+                    :closable="false"
+                    show-icon>
+                    <template #default>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li><strong>T3:</strong> 等待消息回复的最大时间</li>
+                            <li><strong>T5:</strong> 等待建立通信连接的最大时间</li>
+                            <li><strong>T6:</strong> 等待控制状态变更的最大时间</li>
+                            <li><strong>T7:</strong> 等待选择会话的最大时间</li>
+                            <li><strong>T8:</strong> 网络字符间的最大间隔时间</li>
+                        </ul>
+                    </template>
+                </el-alert>
+            </el-col>
+        </el-row>
+    </el-form>
+</el-card>
+
+<style scoped>
+.form-help-text {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+}
+
+.status-card {
+    text-align: center;
+    margin: 5px 0;
+}
+
+.ip-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.el-divider {
+    margin: 20px 0;
+}
+</style>

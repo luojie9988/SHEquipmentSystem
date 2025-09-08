@@ -180,6 +180,10 @@ namespace DiceEquipmentSystem.Core.Configuration
         /// 是否启用PLC通信
         /// </summary>
         public bool Enabled { get; set; } = false;
+        //    /// <summary>接收超时(毫秒)</summary>
+           public int ReceiveTimeout { get; set; } = 3000;
+        //    /// <summary>最大重试次数</summary>
+            public int MaxRetryCount { get; set; } = 3;
     }
 
     /// <summary>
