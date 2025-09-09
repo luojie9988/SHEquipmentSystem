@@ -65,6 +65,11 @@ namespace DiceEquipmentSystem.Secs.Interfaces
         /// 获取连接状态
         /// </summary>
         HsmsConnectionState HsmsConnectionState { get; }
+
+        /// <summary>
+        /// 获取SECS配置
+        /// </summary>
+        object GetConfiguration();
     }
 
     /// <summary>

@@ -124,11 +124,6 @@ namespace DiceEquipmentSystem.Secs.Handlers
         /// <returns>S5F6响应消息</returns>
         /// <remarks>
         /// S5F5 消息格式:
-        /// L,n
-        ///   1. <ALID1>
-        ///   ...
-        ///   n. <ALIDn>
-        /// 
         /// 特殊情况：
         /// - 空列表：返回所有活动报警
         /// - 指定ALID列表：返回指定报警的状态（即使未激活）
@@ -136,14 +131,14 @@ namespace DiceEquipmentSystem.Secs.Handlers
         /// S5F6 响应格式:
         /// L,n
         ///   1. L,3
-        ///      1. <ALCD1> 报警代码 (B,1) 128=SET, 0=CLEAR
-        ///      2. <ALID1> 报警ID (U4)
-        ///      3. <ALTX1> 报警文本 (A,n)
+        ///      1. &lt;ALCD1&gt; 报警代码 (B,1) 128=SET, 0=CLEAR
+        ///      2. &lt;ALID1&gt; 报警ID (U4)
+        ///      3. &lt;ALTX1&gt; 报警文本 (A,n)
         ///   ...
         ///   n. L,3
-        ///      1. <ALCDn>
-        ///      2. <ALIDn>
-        ///      3. <ALTXn>
+        ///      1. &lt;ALCDn&gt;
+        ///      2. &lt;ALIDn&gt;
+        ///      3. &lt;ALTXn&gt;
         /// </remarks>
         public override async Task<SecsMessage?> HandleAsync(SecsMessage message, CancellationToken cancellationToken = default)
         {

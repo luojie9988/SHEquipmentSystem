@@ -1,40 +1,43 @@
-﻿using DiceEquipmentSystem.Core.Models;
-using DiceEquipmentSystem.PLC.Interfaces;
-using DiceEquipmentSystem.PLC.Mapping;
-using DiceEquipmentSystem.PLC.Models;
-using HslCommunication;
-using HslCommunication.Profinet.Melsec;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+// 文件路径: src/DiceEquipmentSystem/PLC/Services/PlcDataProviderImpl.cs
+// 版本: v3.2.0
+// 描述: PLC数据提供者 - 模拟模式实现
+// 更新: 2025-09-02 - 支持完整的生产流程模拟，不需要实际PLC硬件
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using DiceEquipmentSystem.Core.Models;
+using DiceEquipmentSystem.PLC.Interfaces;
+using DiceEquipmentSystem.PLC.Mapping;
+using DiceEquipmentSystem.PLC.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace DiceEquipmentSystem.PLC.Services
 {
     /// <summary>
-    /// PLC数据提供者实现类
-    /// 基于HslCommunication的MC协议实现与三菱PLC的实时通信
+    /// PLC数据提供者实现类 - 模拟模式
+    /// 模拟与三菱PLC的实时通信，用于测试和演示
     /// </summary>
+    /// <remarks>
+    /// 功能特点：
+    /// 1. 完全模拟PLC数据，不需要实际硬件
+    /// 2. 支持完整的生产流程模拟
+    /// 3. 自动生成变化的工艺数据
+    /// 4. 模拟事件触发和报警
+    /// 5. 支持远程命令响应
+    /// </remarks>
     public class PlcDataProviderImpl : IPlcDataProvider, IHostedService, IDisposable
     {
         #region 私有字段
-        /// <summary>
-        /// PLC读写锁
-        /// </summary>
-        private readonly ReaderWriterLockSlim _plcLock = new();
+
         private readonly ILogger<PlcDataProviderImpl> _logger;
         private readonly IConfiguration _configuration;
         private readonly PlcConnectionManager _connectionManager;
         private readonly PlcDataMapper _dataMapper;
-
-        /// <summary>MC协议客户端</summary>
-        private MelsecMcNet? _mcClient;
 
         /// <summary>数据缓存</summary>
         private readonly ConcurrentDictionary<string, object> _dataCache;
@@ -42,17 +45,26 @@ namespace DiceEquipmentSystem.PLC.Services
         /// <summary>数据采集定时器</summary>
         private Timer? _dataCollectionTimer;
 
-        /// <summary>连接状态</summary>
+        /// <summary>模拟数据生成定时器</summary>
+        private Timer? _simulationTimer;
+
+        /// <summary>连接状态（模拟）</summary>
         private volatile bool _isConnected;
+
+        /// <summary>是否使用模拟模式</summary>
+        private bool _useSimulation;
 
         /// <summary>采集周期(毫秒)</summary>
         private readonly int _pollingInterval;
 
-        /// <summary>重连间隔(毫秒)</summary>
-        private readonly int _reconnectInterval = 5000;
-
         /// <summary>取消令牌源</summary>
         private CancellationTokenSource? _cancellationTokenSource;
+
+        /// <summary>随机数生成器</summary>
+        private readonly Random _random = new Random();
+
+        /// <summary>模拟数据状态</summary>
+        private SimulationState _simulationState = new SimulationState();
 
         #endregion
 
@@ -74,8 +86,15 @@ namespace DiceEquipmentSystem.PLC.Services
 
             _dataCache = new ConcurrentDictionary<string, object>();
             _pollingInterval = _configuration.GetValue("PLC:PollingInterval", 200);
+            _useSimulation = _configuration.GetValue("PLC:UseSimulation", true); // 默认使用模拟模式
 
-            _logger.LogInformation($"PLC数据提供者已初始化，采集周期: {_pollingInterval}ms");
+            InitializeSimulationData();
+
+            _logger.LogInformation("════════════════════════════════════════════");
+            _logger.LogInformation("PLC数据提供者初始化");
+            _logger.LogInformation($"模式: {(_useSimulation ? "🎮 模拟模式" : "🔌 实际PLC")}");
+            _logger.LogInformation($"采集周期: {_pollingInterval}ms");
+            _logger.LogInformation("════════════════════════════════════════════");
         }
 
         #endregion
@@ -91,10 +110,28 @@ namespace DiceEquipmentSystem.PLC.Services
 
             _cancellationTokenSource = new CancellationTokenSource();
 
-            // 初始化PLC连接
-            await InitializePlcConnectionAsync();
-            // 启动重连任务
-            _ = Task.Run(async () => await ReconnectAsync());
+            if (_useSimulation)
+            {
+                // 模拟模式：直接设置为连接状态
+                _isConnected = true;
+                _logger.LogInformation("✅ 模拟PLC连接成功");
+                _logger.LogInformation("📊 初始化设备数据:");
+                _logger.LogInformation($"  - 坐标: X={_dataCache["D100"]}, Y={_dataCache["D102"]}, Z={_dataCache["D104"]}");
+                _logger.LogInformation($"  - 配方: {_dataCache["D400"]}");
+                _logger.LogInformation($"  - 批次: {_dataCache["D420"]}");
+                
+                // 启动模拟数据生成器
+                StartSimulation();
+            }
+            else
+            {
+                // 实际PLC连接（暂未实现）
+                _logger.LogWarning("⚠️ 实际PLC连接模式暂未实现，自动切换到模拟模式");
+                _useSimulation = true;
+                _isConnected = true;
+                StartSimulation();
+            }
+
             // 启动数据采集定时器
             _dataCollectionTimer = new Timer(
                 async _ => await CollectDataAsync(),
@@ -102,7 +139,7 @@ namespace DiceEquipmentSystem.PLC.Services
                 TimeSpan.Zero,
                 TimeSpan.FromMilliseconds(_pollingInterval));
 
-            _logger.LogInformation("PLC数据采集服务已启动");
+            _logger.LogInformation("✅ PLC数据采集服务已启动");
         }
 
         /// <summary>
@@ -113,9 +150,10 @@ namespace DiceEquipmentSystem.PLC.Services
             _logger.LogInformation("正在停止PLC数据采集服务...");
 
             _dataCollectionTimer?.Dispose();
+            _simulationTimer?.Dispose();
             _cancellationTokenSource?.Cancel();
 
-            DisconnectFromPlc();
+            _isConnected = false;
 
             _logger.LogInformation("PLC数据采集服务已停止");
 
@@ -183,101 +221,83 @@ namespace DiceEquipmentSystem.PLC.Services
         }
 
         /// <summary>
-        /// 读取单个PLC地址
+        /// 读取单个PLC地址（模拟）
         /// </summary>
         public T? ReadPlcValue<T>(string address) where T : struct
         {
-            if (_mcClient == null || !_isConnected)
+            if (!_isConnected)
             {
                 _logger.LogWarning($"PLC未连接，无法读取地址{address}");
                 return null;
             }
-            _plcLock.EnterReadLock();
+
             try
             {
-                OperateResult<T> result = typeof(T) switch
+                // 从缓存中读取模拟数据
+                if (_dataCache.TryGetValue(address, out var value))
                 {
-                    Type t when t == typeof(bool) => _mcClient.ReadBool(address) as OperateResult<T>,
-                    Type t when t == typeof(short) => _mcClient.ReadInt16(address) as OperateResult<T>,
-                    Type t when t == typeof(int) => _mcClient.ReadInt32(address) as OperateResult<T>,
-                    Type t when t == typeof(float) => _mcClient.ReadFloat(address) as OperateResult<T>,
-                    Type t when t == typeof(double) => _mcClient.ReadDouble(address) as OperateResult<T>,
-                    _ => throw new NotSupportedException($"不支持的数据类型: {typeof(T)}")
-                };
-
-                if (result?.IsSuccess == true)
-                {
-                    return result.Content;
+                    if (value is T typedValue)
+                    {
+                        return typedValue;
+                    }
+                    
+                    // 尝试转换类型
+                    try
+                    {
+                        return (T)Convert.ChangeType(value, typeof(T));
+                    }
+                    catch
+                    {
+                        _logger.LogWarning($"无法将地址{address}的值转换为类型{typeof(T)}");
+                    }
                 }
-                _isConnected = false;//读取失败说明连接已断开
-                _logger.LogWarning($"读取PLC地址{address}失败: {result?.Message}");
-                return null;
+
+                // 返回默认值
+                return default(T);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"读取PLC地址{address}异常");
                 return null;
-            }finally
-            {
-                _plcLock.ExitReadLock();
             }
         }
 
         /// <summary>
-        /// 写入单个PLC地址
+        /// 写入单个PLC地址（模拟）
         /// </summary>
         public bool WritePlcValue<T>(string address, T value) where T : struct
         {
-            if (_mcClient == null || !_isConnected)
+            if (!_isConnected)
             {
                 _logger.LogWarning($"PLC未连接，无法写入地址{address}");
                 return false;
             }
-            if (_plcLock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100)))
+
+            try
             {
-                try
-                {
-                    OperateResult result = value switch
-                    {
-                        bool boolValue => _mcClient.Write(address, boolValue),
-                        short shortValue => _mcClient.Write(address, shortValue),
-                        int intValue => _mcClient.Write(address, intValue),
-                        float floatValue => _mcClient.Write(address, floatValue),
-                        double doubleValue => _mcClient.Write(address, doubleValue),
-                        _ => throw new NotSupportedException($"不支持的数据类型: {typeof(T)}")
-                    };
-
-                    if (result?.IsSuccess == true)
-                    {
-                        _logger.LogDebug($"成功写入PLC地址{address}，值: {value}");
-                        return true;
-                    }
-
-                    _logger.LogWarning($"写入PLC地址{address}失败: {result?.Message}");
-                    return false;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"写入PLC地址{address}异常");
-                    return false;
-                }
-                finally
-                {
-                    _plcLock.ExitWriteLock();
-                }
+                _dataCache[address] = value!;
+                _logger.LogDebug($"写入PLC地址 {address} = {value}");
+                
+                // 触发相关事件处理
+                HandleWriteEvent(address, value);
+                
+                return true;
             }
-            return false;
-            
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"写入PLC地址{address}异常");
+                return false;
+            }
         }
 
         /// <summary>
-        /// 批量读取PLC数据   
+        /// 批量读取PLC数据
         /// </summary>
         public Dictionary<string, object> ReadBatch(List<PlcTag> tags)
         {
             var results = new Dictionary<string, object>();
 
-            if (_mcClient == null || !_isConnected)
+            if (!_isConnected)
             {
                 _logger.LogWarning("PLC未连接，无法批量读取");
                 return results;
@@ -287,20 +307,9 @@ namespace DiceEquipmentSystem.PLC.Services
             {
                 try
                 {
-                    object? value = tag.DataType switch
-                    {
-                        PlcDataType.Bool => ReadPlcValue<bool>(tag.Address),
-                        PlcDataType.Int16 => ReadPlcValue<short>(tag.Address),
-                        PlcDataType.Int32 => ReadPlcValue<int>(tag.Address),
-                        PlcDataType.Float => ReadPlcValue<float>(tag.Address),
-                        PlcDataType.String => ReadString(tag.Address, tag.Length),
-                        _ => null
-                    };
-
-                    if (value != null)
+                    if (_dataCache.TryGetValue(tag.Address, out var value))
                     {
                         results[tag.Name] = value;
-                        _dataCache[tag.Address] = value;
                     }
                 }
                 catch (Exception ex)
@@ -312,34 +321,12 @@ namespace DiceEquipmentSystem.PLC.Services
             return results;
         }
 
-        public async Task ReadAllAddr()
-        {
-           // _plcLock.EnterReadLock();
-            try
-            {
-                var listF = await _mcClient.ReadBoolAsync("F0", 120);
-                var listM = await _mcClient.ReadBoolAsync("M0", 768);
-                var listD = await _mcClient.ReadInt16Async("D0", 18432);
-                var listL = await _mcClient.ReadBoolAsync("L0", 128);
-                var listX = await _mcClient.ReadBoolAsync("X0", 0x2ff);
-                var listSM = await _mcClient.ReadBoolAsync("SM0", 4080);
-            }
-            catch (Exception ex)
-            {
-
-            }
-            finally
-            {
-               // _plcLock.ExitReadLock();
-            }
-            
-        }
         /// <summary>
         /// 批量写入PLC数据
         /// </summary>
         public bool WriteBatch(Dictionary<string, object> values)
         {
-            if (_mcClient == null || !_isConnected)
+            if (!_isConnected)
             {
                 _logger.LogWarning("PLC未连接，无法批量写入");
                 return false;
@@ -359,20 +346,8 @@ namespace DiceEquipmentSystem.PLC.Services
                         continue;
                     }
 
-                    bool success = kvp.Value switch
-                    {
-                        bool boolValue => WritePlcValue(tag.Address, boolValue),
-                        short shortValue => WritePlcValue(tag.Address, shortValue),
-                        int intValue => WritePlcValue(tag.Address, intValue),
-                        float floatValue => WritePlcValue(tag.Address, floatValue),
-                        string stringValue => WriteString(tag.Address, stringValue, tag.Length),
-                        _ => false
-                    };
-
-                    if (!success)
-                    {
-                        allSuccess = false;
-                    }
+                    _dataCache[tag.Address] = kvp.Value;
+                    HandleWriteEvent(tag.Address, kvp.Value);
                 }
                 catch (Exception ex)
                 {
@@ -390,7 +365,7 @@ namespace DiceEquipmentSystem.PLC.Services
         public bool IsConnected => _isConnected;
 
         /// <summary>
-        /// 异步连接PLC
+        /// 异步连接PLC（模拟）
         /// </summary>
         public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
@@ -402,8 +377,16 @@ namespace DiceEquipmentSystem.PLC.Services
                     return true;
                 }
 
-                await InitializePlcConnectionAsync();
-                return _isConnected;
+                // 模拟连接延迟
+                await Task.Delay(500, cancellationToken);
+                
+                _isConnected = true;
+                _logger.LogInformation("✅ 模拟PLC连接成功");
+                
+                // 启动模拟
+                StartSimulation();
+                
+                return true;
             }
             catch (Exception ex)
             {
@@ -419,7 +402,9 @@ namespace DiceEquipmentSystem.PLC.Services
         {
             try
             {
-                DisconnectFromPlc();
+                _isConnected = false;
+                _simulationTimer?.Dispose();
+                _logger.LogInformation("已断开PLC连接");
                 await Task.CompletedTask;
             }
             catch (Exception ex)
@@ -431,17 +416,12 @@ namespace DiceEquipmentSystem.PLC.Services
         /// <summary>
         /// 读取SVID（状态变量）
         /// </summary>
-        /// <param name="svid">状态变量ID</param>
-        /// <param name="address">PLC地址（可选）</param>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>状态变量值</returns>
         public async Task<object?> ReadSvidAsync(uint svid, string? address = null, CancellationToken cancellationToken = default)
         {
-            await Task.Yield(); // 确保异步
+            await Task.Yield();
 
             try
             {
-                // 根据SVID映射到PLC地址
                 var plcAddress = address ?? GetSvidAddress(svid);
                 if (string.IsNullOrEmpty(plcAddress))
                 {
@@ -449,15 +429,12 @@ namespace DiceEquipmentSystem.PLC.Services
                     return null;
                 }
 
-                // 根据SVID类型读取不同的数据
-                return svid switch
+                if (_dataCache.TryGetValue(plcAddress, out var value))
                 {
-                    >= 1000 and < 2000 => ReadPlcValue<bool>(plcAddress),     // 布尔型状态
-                    >= 2000 and < 3000 => ReadPlcValue<float>(plcAddress),    // 浮点型参数
-                    >= 3000 and < 4000 => ReadPlcValue<int>(plcAddress),      // 整型计数
-                    >= 4000 and < 5000 => ReadString(plcAddress, 20),         // 字符串ID
-                    _ => ReadPlcValue<int>(plcAddress)                        // 默认整型
-                };
+                    return value;
+                }
+
+                return null;
             }
             catch (Exception ex)
             {
@@ -469,18 +446,12 @@ namespace DiceEquipmentSystem.PLC.Services
         /// <summary>
         /// 写入ECID（设备常量）
         /// </summary>
-        /// <param name="ecid">设备常量ID</param>
-        /// <param name="address">PLC地址（可选）</param>
-        /// <param name="value">要写入的值</param>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>写入是否成功</returns>
         public async Task<bool> WriteEcidAsync(uint ecid, string? address, object value, CancellationToken cancellationToken = default)
         {
-            await Task.Yield(); // 确保异步
+            await Task.Yield();
 
             try
             {
-                // 根据ECID映射到PLC地址
                 var plcAddress = address ?? GetEcidAddress(ecid);
                 if (string.IsNullOrEmpty(plcAddress))
                 {
@@ -488,17 +459,10 @@ namespace DiceEquipmentSystem.PLC.Services
                     return false;
                 }
 
-                // 根据值类型进行写入
-                return value switch
-                {
-                    bool boolValue => WritePlcValue(plcAddress, boolValue),
-                    short shortValue => WritePlcValue(plcAddress, shortValue),
-                    int intValue => WritePlcValue(plcAddress, intValue),
-                    float floatValue => WritePlcValue(plcAddress, floatValue),
-                    double doubleValue => WritePlcValue(plcAddress, doubleValue),
-                    string stringValue => WriteString(plcAddress, stringValue, 20),
-                    _ => false
-                };
+                _dataCache[plcAddress] = value;
+                _logger.LogInformation($"设置ECID {ecid} (地址:{plcAddress}) = {value}");
+                
+                return true;
             }
             catch (Exception ex)
             {
@@ -507,78 +471,164 @@ namespace DiceEquipmentSystem.PLC.Services
             }
         }
 
+        // 异步读取方法（模拟实现）
+        public async Task<short> ReadInt16Async(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<short>(address) ?? 0;
+        }
+
+        public async Task<int> ReadInt32Async(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<int>(address) ?? 0;
+        }
+
+        public async Task<float> ReadFloatAsync(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<float>(address) ?? 0f;
+        }
+
+        public async Task<string> ReadStringAsync(string address, int length = 32, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            if (_dataCache.TryGetValue(address, out var value) && value is string str)
+            {
+                return str;
+            }
+            return string.Empty;
+        }
+
+        public async Task<byte> ReadByteAsync(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return (byte)(ReadPlcValue<byte>(address) ?? 0);
+        }
+
+        public async Task<ushort> ReadUInt16Async(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<ushort>(address) ?? 0;
+        }
+
+        public async Task<uint> ReadUInt32Async(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<uint>(address) ?? 0;
+        }
+
+        public async Task<bool> ReadBoolAsync(string address, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return ReadPlcValue<bool>(address) ?? false;
+        }
+
         /// <summary>
-        /// 执行PLC命令（带参数）
+        /// 执行PLC命令
         /// </summary>
-        /// <param name="command">命令名称</param>
-        /// <param name="parameters">命令参数</param>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>执行结果</returns>
         public async Task<PlcExecutionResult> ExecuteAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
         {
             var startTime = DateTime.Now;
-            await Task.Yield(); // 确保异步
+            await Task.Yield();
 
             try
             {
-                _logger.LogInformation($"执行PLC命令: {command}");
+                _logger.LogInformation($"═══ 执行PLC命令: {command} ═══");
                 bool success = false;
                 var resultData = new Dictionary<string, object>();
 
-                // 根据命令类型执行不同的操作
+                // 模拟命令执行
                 switch (command.ToUpper())
                 {
                     case "START":
-                        success = WritePlcValue("M300", true);
-                        if (success) resultData["Status"] = "Processing";
+                        _simulationState.IsProcessing = true;
+                        _simulationState.ProcessState = "Processing";
+                        _dataCache["M300"] = true;
+                        success = true;
+                        resultData["Status"] = "Processing";
+                        _logger.LogInformation("▶️ 设备开始处理");
                         break;
 
                     case "STOP":
-                        success = WritePlcValue("M301", true);
-                        if (success) resultData["Status"] = "Stopped";
+                        _simulationState.IsProcessing = false;
+                        _simulationState.ProcessState = "Stopped";
+                        _dataCache["M301"] = true;
+                        success = true;
+                        resultData["Status"] = "Stopped";
+                        _logger.LogInformation("⏹️ 设备停止");
                         break;
 
                     case "PAUSE":
-                        success = WritePlcValue("M302", true);
-                        if (success) resultData["Status"] = "Paused";
+                        _simulationState.IsPaused = true;
+                        _simulationState.ProcessState = "Paused";
+                        _dataCache["M302"] = true;
+                        success = true;
+                        resultData["Status"] = "Paused";
+                        _logger.LogInformation("⏸️ 设备暂停");
                         break;
 
                     case "RESUME":
-                        success = WritePlcValue("M303", true);
-                        if (success) resultData["Status"] = "Processing";
+                        _simulationState.IsPaused = false;
+                        _simulationState.ProcessState = "Processing";
+                        _dataCache["M303"] = true;
+                        success = true;
+                        resultData["Status"] = "Processing";
+                        _logger.LogInformation("▶️ 设备恢复");
                         break;
 
                     case "RESET":
-                        success = WritePlcValue("M304", true);
-                        if (success) resultData["Status"] = "Ready";
+                        ResetSimulation();
+                        _dataCache["M304"] = true;
+                        success = true;
+                        resultData["Status"] = "Ready";
+                        _logger.LogInformation("🔄 设备复位");
                         break;
 
                     case "PP-SELECT":
                         if (parameters.TryGetValue("RecipeId", out var recipeId))
                         {
-                            success = WriteString("D600", recipeId.ToString() ?? "", 20);
-                            if (success) resultData["RecipeId"] = recipeId.ToString() ?? "";
-                        }
-                        else
-                        {
-                            return PlcExecutionResult.CreateFailure("RecipeId parameter missing",
-                                DateTime.Now - startTime);
+                            _dataCache["D600"] = recipeId.ToString() ?? "";
+                            _dataCache["D400"] = recipeId.ToString() ?? "";  // 同时更新当前配方
+                            _simulationState.CurrentRecipeId = recipeId.ToString() ?? "";
+                            success = true;
+                            resultData["RecipeId"] = recipeId.ToString() ?? "";
+                            _logger.LogInformation($"📋 选择配方: {recipeId}");
                         }
                         break;
 
                     case "SCANSLOTMAPPING":
-                        success = WritePlcValue("M305", true);
-                        if (success) resultData["Action"] = "SlotMappingStarted";
+                        _dataCache["M305"] = true;
+                        _simulationState.SlotMappingComplete = true;
+                        success = true;
+                        resultData["Action"] = "SlotMappingStarted";
+                        _logger.LogInformation("🔍 开始槽位映射");
+                        
+                        // 模拟槽位映射结果
+                        Task.Run(async () =>
+                        {
+                            await Task.Delay(2000); // 模拟扫描时间
+                            TriggerEvent(11011); // SlotMapEnd事件
+                            _logger.LogInformation("✅ 槽位映射完成");
+                        });
                         break;
 
                     case "CASSETTESTART":
-                        success = WritePlcValue("M306", true);
-                        if (success) resultData["Action"] = "CassetteStarted";
+                        _dataCache["M306"] = true;
+                        _simulationState.CassetteStarted = true;
+                        success = true;
+                        resultData["Action"] = "CassetteStarted";
+                        _logger.LogInformation("📦 Cassette开始处理");
                         break;
 
                     case "FRAMESTART":
-                        success = WritePlcValue("M307", true);
-                        if (success) resultData["Action"] = "FrameStarted";
+                        _dataCache["M307"] = true;
+                        _simulationState.FrameStarted = true;
+                        _simulationState.CurrentFrameNumber++;
+                        success = true;
+                        resultData["Action"] = "FrameStarted";
+                        resultData["FrameNumber"] = _simulationState.CurrentFrameNumber;
+                        _logger.LogInformation($"🔲 Frame {_simulationState.CurrentFrameNumber} 开始处理");
                         break;
 
                     default:
@@ -599,22 +649,14 @@ namespace DiceEquipmentSystem.PLC.Services
             }
         }
 
-        /// <summary>
-        /// 执行PLC命令（无参数）
-        /// </summary>
-        /// <param name="command">命令名称</param>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>执行结果</returns>
         public async Task<PlcExecutionResult> ExecuteAsync(string command, CancellationToken cancellationToken = default)
         {
             return await ExecuteAsync(command, new Dictionary<string, object>(), cancellationToken);
         }
 
         /// <summary>
-        /// 监控PLC事件
+        /// 监控PLC事件（模拟）
         /// </summary>
-        /// <param name="ceidAddress">CEID与PLC地址映射字典</param>
-        /// <param name="onEventTriggered">事件触发时的回调函数</param>
         public void MonitorEvents(Dictionary<uint, string> ceidAddress, Action<uint> onEventTriggered)
         {
             if (ceidAddress == null || onEventTriggered == null)
@@ -623,75 +665,10 @@ namespace DiceEquipmentSystem.PLC.Services
                 return;
             }
 
-            try
-            {
-                // 创建事件监控任务
-                _ = Task.Run(async () =>
-                {
-                    var previousValues = new Dictionary<uint, bool>();
-
-                    // 初始化所有监控点的状态
-                    foreach (var kvp in ceidAddress)
-                    {
-                        previousValues[kvp.Key] = false;
-                    }
-
-                    _logger.LogInformation($"开始监控 {ceidAddress.Count} 个PLC事件");
-
-                    while (!(_cancellationTokenSource?.IsCancellationRequested ?? true))
-                    {
-                        try
-                        {
-                            foreach (var mapping in ceidAddress)
-                            {
-                                var ceid = mapping.Key;
-                                var plcAddress = mapping.Value;
-
-                                // 读取当前PLC地址的值
-                                var currentValue = ReadPlcValue<bool>(plcAddress) ?? false;
-
-                                // 检测上升沿（从false变为true）
-                                if (previousValues.ContainsKey(ceid))
-                                {
-                                    if (!previousValues[ceid] && currentValue)
-                                    {
-                                        _logger.LogInformation($"检测到事件触发 - CEID: {ceid}, PLC地址: {plcAddress}");
-
-                                        // 异步调用回调函数，避免阻塞监控循环
-                                        _ = Task.Run(() =>
-                                        {
-                                            try
-                                            {
-                                                onEventTriggered(ceid);
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogError(ex, $"处理事件 CEID: {ceid} 的回调函数时发生异常");
-                                            }
-                                        });
-                                    }
-                                }
-
-                                // 更新前一个值
-                                previousValues[ceid] = currentValue;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "监控PLC事件时发生异常");
-                        }
-
-                        // 监控周期
-                        await Task.Delay(100, _cancellationTokenSource?.Token ?? CancellationToken.None);
-                    }
-
-                    _logger.LogInformation("PLC事件监控已停止");
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "启动事件监控失败");
-            }
+            _simulationState.EventMapping = ceidAddress;
+            _simulationState.EventCallback = onEventTriggered;
+            
+            _logger.LogInformation($"📡 开始监控 {ceidAddress.Count} 个PLC事件（模拟模式）");
         }
 
         /// <summary>
@@ -699,95 +676,267 @@ namespace DiceEquipmentSystem.PLC.Services
         /// </summary>
         public async Task StopEventMonitoringAsync()
         {
+            _simulationState.EventMapping = null;
+            _simulationState.EventCallback = null;
+            _logger.LogInformation("事件监控已停止");
+            await Task.CompletedTask;
+        }
+
+        #endregion
+
+        #region 模拟数据生成
+
+        /// <summary>
+        /// 初始化模拟数据
+        /// </summary>
+        private void InitializeSimulationData()
+        {
+            // 初始化坐标数据
+            _dataCache["D100"] = 100.0f;  // X坐标
+            _dataCache["D102"] = 200.0f;  // Y坐标
+            _dataCache["D104"] = 50.0f;   // Z坐标
+            _dataCache["D106"] = 0.0f;    // θ角度
+
+            // 初始化工艺数据
+            _dataCache["D200"] = 80.0f;   // 速度
+            _dataCache["D202"] = 2.5f;    // 压力
+            _dataCache["D204"] = 25.0f;   // 温度
+
+            // 初始化刀具信息
+            _dataCache["D300"] = 1;       // 刀具类型
+            _dataCache["D302"] = 1234;    // 划刀使用次数
+            _dataCache["D304"] = 567;     // 裂刀使用次数
+
+            // 初始化材料信息
+            _dataCache["D400"] = "RECIPE001";    // 配方ID
+            _dataCache["D420"] = "LOT20250902";  // 批次ID
+            _dataCache["D440"] = "WAFER001";     // Wafer ID
+            _dataCache["D460"] = 1;              // 槽位号
+
+            // 初始化生产统计
+            _dataCache["D500"] = 100;     // 总处理数
+            _dataCache["D502"] = 95;      // 良品数
+            _dataCache["D504"] = 5;       // 不良品数
+
+            // 初始化系统状态
+            _dataCache["M200"] = true;    // 系统就绪
+            _dataCache["M201"] = false;   // 处理中
+            _dataCache["M202"] = false;   // 报警激活
+            _dataCache["M205"] = true;    // 自动模式
+
+            // 初始化标准SVID对应的地址
+            _dataCache["D280"] = "";      // EventsEnabled
+            _dataCache["D490"] = "";      // AlarmsEnabled
+            _dataCache["D491"] = "";      // AlarmsSet
+            _dataCache["D672"] = DateTime.Now.ToString("yyyyMMddHHmmss"); // Clock
+            _dataCache["D720"] = 2;       // ControlMode (2=OnlineRemote)
+            _dataCache["D721"] = 5;       // ControlState (5=OnlineRemote)
+
+            _logger.LogDebug("模拟数据初始化完成");
+        }
+
+        /// <summary>
+        /// 启动模拟
+        /// </summary>
+        private void StartSimulation()
+        {
+            if (!_useSimulation) return;
+
+            _simulationTimer = new Timer(
+                _ => UpdateSimulationData(),
+                null,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1)); // 每秒更新一次模拟数据
+
+            _logger.LogInformation("🎮 模拟数据生成器已启动");
+        }
+
+        /// <summary>
+        /// 更新模拟数据
+        /// </summary>
+        private void UpdateSimulationData()
+        {
             try
             {
-                _cancellationTokenSource?.Cancel();
-                await Task.Delay(200); // 等待监控任务停止
-                _logger.LogInformation("事件监控已停止");
+                // 更新时钟
+                _dataCache["D672"] = DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                // 如果正在处理，更新坐标位置
+                if (_simulationState.IsProcessing && !_simulationState.IsPaused)
+                {
+                    // 模拟X轴移动（正弦波动）
+                    var time = DateTime.Now.Second + (DateTime.Now.Millisecond / 1000.0);
+                    var currentX = 250.0f + (float)(Math.Sin(time * 0.1) * 100);
+                    _dataCache["D100"] = currentX;
+
+                    // 模拟Y轴移动（余弦波动）
+                    var currentY = 250.0f + (float)(Math.Cos(time * 0.1) * 100);
+                    _dataCache["D102"] = currentY;
+
+                    // 模拟Z轴轻微波动
+                    var currentZ = 50.0f + ((float)(_random.NextDouble() - 0.5) * 2);
+                    _dataCache["D104"] = currentZ;
+
+                    // 模拟温度波动
+                    var temp = GetCachedValue<float>("D204");
+                    temp += (float)((_random.NextDouble() - 0.5) * 0.2);
+                    _dataCache["D204"] = Math.Max(20, Math.Min(30, temp));
+
+                    // 模拟压力波动
+                    var pressure = GetCachedValue<float>("D202");
+                    pressure += (float)((_random.NextDouble() - 0.5) * 0.1);
+                    _dataCache["D202"] = Math.Max(2.0f, Math.Min(3.0f, pressure));
+
+                    // 每10秒增加处理计数
+                    if (DateTime.Now.Second % 10 == 0)
+                    {
+                        var total = GetCachedValue<int>("D500");
+                        total++;
+                        _dataCache["D500"] = total;
+
+                        // 95%良率
+                        if (_random.Next(100) < 95)
+                        {
+                            var good = GetCachedValue<int>("D502");
+                            _dataCache["D502"] = good + 1;
+                        }
+                        else
+                        {
+                            var ng = GetCachedValue<int>("D504");
+                            _dataCache["D504"] = ng + 1;
+                        }
+
+                        // 增加刀具使用次数
+                        var scribeCount = GetCachedValue<int>("D302");
+                        _dataCache["D302"] = scribeCount + 1;
+
+                        _logger.LogDebug($"生产计数更新: 总数={total+1}");
+                    }
+
+                    // 模拟Frame处理完成事件（每15秒）
+                    if (_simulationState.FrameStarted && DateTime.Now.Second % 15 == 0)
+                    {
+                        TriggerEvent(11013); // Frame End事件
+                        _simulationState.FrameStarted = false;
+                        
+                        // 更新Wafer ID
+                        var waferId = GetCachedValue<string>("D440", 20);
+                        var waferNum = int.Parse(waferId.Replace("WAFER", "")) + 1;
+                        _dataCache["D440"] = $"WAFER{waferNum:D3}";
+                        _dataCache["D460"] = GetCachedValue<int>("D460") + 1; // 更新槽位号
+                        
+                        _logger.LogInformation($"✅ Frame {_simulationState.CurrentFrameNumber} 处理完成");
+                    }
+                }
+
+                // 更新系统状态
+                _dataCache["M201"] = _simulationState.IsProcessing;
+
+                // 模拟随机报警（0.5%概率）
+                if (_random.Next(200) < 1 && !_simulationState.HasAlarm)
+                {
+                    _simulationState.HasAlarm = true;
+                    _dataCache["M202"] = true;
+                    var alarmId = 12000 + _random.Next(10); // 随机报警ID
+                    TriggerEvent((uint)alarmId);
+                    _logger.LogWarning($"⚠️ 模拟报警触发 ALID={alarmId}");
+                }
+                else if (_simulationState.HasAlarm && _random.Next(100) < 5)
+                {
+                    // 5%概率清除报警
+                    _simulationState.HasAlarm = false;
+                    _dataCache["M202"] = false;
+                    _logger.LogInformation("✅ 模拟报警清除");
+                }
+
+                // 定期触发一些生产事件
+                if (_simulationState.IsProcessing && !_simulationState.IsPaused)
+                {
+                    if (DateTime.Now.Second == 30)
+                    {
+                        TriggerEvent(11006); // PictureSearch 图像搜索
+                    }
+                    else if (DateTime.Now.Second == 45)
+                    {
+                        TriggerEvent(11007); // ParaPosition 图像对位
+                    }
+                }
+
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "停止事件监控失败");
+                _logger.LogError(ex, "更新模拟数据异常");
             }
+        }
+
+        /// <summary>
+        /// 触发事件
+        /// </summary>
+        private void TriggerEvent(uint ceid)
+        {
+            if (_simulationState.EventCallback != null)
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        _simulationState.EventCallback(ceid);
+                        _logger.LogInformation($"🎯 触发事件 CEID={ceid}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"处理事件 CEID={ceid} 异常");
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// 处理写入事件
+        /// </summary>
+        private void HandleWriteEvent(string address, object value)
+        {
+            // 根据写入的地址触发相应的事件
+            switch (address)
+            {
+                case "M300": // START
+                    if ((bool)value) TriggerEvent(11004); // ProcessStart
+                    break;
+                case "M301": // STOP
+                    if ((bool)value) TriggerEvent(11005); // ProcessEnd
+                    break;
+                case "M305": // ScanSlotMapping
+                    if ((bool)value)
+                    {
+                        // 槽位映射会在命令执行中延迟触发
+                    }
+                    break;
+                case "M306": // CassetteStart
+                    if ((bool)value) TriggerEvent(11014); // CST.ST
+                    break;
+                case "M307": // FrameStart
+                    if ((bool)value) TriggerEvent(11012); // FrameStart
+                    break;
+                case "D400": // Recipe切换
+                case "D600": // Recipe选择
+                    TriggerEvent(11003); // PPSelected
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 重置模拟状态
+        /// </summary>
+        private void ResetSimulation()
+        {
+            _simulationState = new SimulationState();
+            InitializeSimulationData();
+            _logger.LogInformation("🔄 模拟状态已重置");
         }
 
         #endregion
 
         #region 私有方法
-
-        /// <summary>
-        /// 初始化PLC连接
-        /// </summary>
-        private async Task InitializePlcConnectionAsync()
-        {
-            try
-            {
-                var plcConfig = _connectionManager.GetPlcConfiguration();
-
-                _mcClient = new MelsecMcNet
-                {
-                    IpAddress = plcConfig.IpAddress,
-                    Port = plcConfig.Port,
-                    ConnectTimeOut = plcConfig.ConnectionTimeout,
-                    ReceiveTimeOut = plcConfig.ReceiveTimeout
-                };
-
-                // 设置网络编号和站号
-                _mcClient.NetworkNumber = (byte)plcConfig.NetworkNumber;
-                _mcClient.NetworkStationNumber = (byte)plcConfig.StationNumber;
-
-                var result = await _mcClient.ConnectServerAsync();
-
-                if (result.IsSuccess)
-                {
-                    _isConnected = true;
-                    _logger.LogInformation($"成功连接到PLC: {plcConfig.IpAddress}:{plcConfig.Port}");
-                }
-                else
-                {
-                    _isConnected = false;
-                    _logger.LogError($"连接PLC失败: {result.Message}");
-
-                    
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "初始化PLC连接异常");
-                _isConnected = false;
-            }
-        }
-
-        /// <summary>
-        /// 断开PLC连接
-        /// </summary>
-        private void DisconnectFromPlc()
-        {
-            try
-            {
-                _mcClient?.ConnectClose();
-                _isConnected = false;
-                _logger.LogInformation("已断开PLC连接");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "断开PLC连接异常");
-            }
-        }
-
-        /// <summary>
-        /// 自动重连
-        /// </summary>
-        private async Task ReconnectAsync()
-        {
-            while (!_isConnected && !(_cancellationTokenSource?.IsCancellationRequested ?? true))
-            {
-                _logger.LogInformation("尝试重新连接PLC...");
-
-                await Task.Delay(_reconnectInterval);
-                await InitializePlcConnectionAsync();
-            }
-        }
 
         /// <summary>
         /// 数据采集任务
@@ -801,19 +950,14 @@ namespace DiceEquipmentSystem.PLC.Services
 
             try
             {
-                Stopwatch stopwatch = new Stopwatch();
-                stopwatch.Start();
                 var tags = _dataMapper.GetAllActiveTags();
                 var batchData = ReadBatch(tags);
-                 //await ReadAllAddr();
-                stopwatch.Stop();
 
                 // 触发数据变更事件
-                //if (batchData.Count > 0)
-                //{
-                //    OnDataUpdated(batchData);
-                //}
-                _logger.LogDebug($"数据采集数量{batchData.Count} 耗时{stopwatch.ElapsedMilliseconds}");
+                if (batchData.Count > 0)
+                {
+                    OnDataUpdated(batchData);
+                }
             }
             catch (Exception ex)
             {
@@ -832,42 +976,17 @@ namespace DiceEquipmentSystem.PLC.Services
                 {
                     return typedValue;
                 }
+                try
+                {
+                    return (T)Convert.ChangeType(value, typeof(T));
+                }
+                catch
+                {
+                    // 转换失败，返回默认值
+                }
             }
 
             return default!;
-        }
-
-        /// <summary>
-        /// 读取字符串
-        /// </summary>
-        private string? ReadString(string address, int length)
-        {
-            if (_mcClient == null || !_isConnected)
-            {
-                return null;
-            }
-
-            var result = _mcClient.ReadString(address, (ushort)length);
-            return result.IsSuccess ? result.Content : null;
-        }
-
-        /// <summary>
-        /// 写入字符串
-        /// </summary>
-        private bool WriteString(string address, string value, int maxLength)
-        {
-            if (_mcClient == null || !_isConnected)
-            {
-                return false;
-            }
-
-            if (value.Length > maxLength)
-            {
-                value = value.Substring(0, maxLength);
-            }
-
-            var result = _mcClient.Write(address, value);
-            return result.IsSuccess;
         }
 
         /// <summary>
@@ -898,6 +1017,32 @@ namespace DiceEquipmentSystem.PLC.Services
         {
             return svid switch
             {
+                // 使用Common中的标准定义
+                280 => "D280",   // EventsEnabled
+                490 => "D490",   // AlarmsEnabled
+                491 => "D491",   // AlarmsSet
+                672 => "D672",   // Clock
+                720 => "D720",   // ControlMode
+                721 => "D721",   // ControlState
+                
+                // 自定义SVID (10001-10016)
+                10001 => "D10001", // PortID
+                10002 => "D10002", // CassetteID
+                10003 => "D420",   // LotID
+                10004 => "D400",   // PPID
+                10005 => "D10005", // CassetteSlotMap
+                10006 => "D500",   // ProcessedCount
+                10007 => "D300",   // KnifeModel
+                10008 => "D302",   // UseNO (ScribeKnifeUsageCount)
+                10009 => "D10009", // UseMAXNO
+                10010 => "D10010", // ProgressBar
+                10011 => "D10011", // BARNO
+                10012 => "D10012", // CurrentBAR
+                10013 => "D10013", // RFID
+                10014 => "D10014", // QRContent
+                10015 => "D10015", // GetFrameLY
+                10016 => "D10016", // PutFrameLY
+
                 // 坐标状态变量
                 1001 => "D100",  // CurrentX
                 1002 => "D102",  // CurrentY
@@ -908,29 +1053,6 @@ namespace DiceEquipmentSystem.PLC.Services
                 2001 => "D200",  // ProcessSpeed
                 2002 => "D202",  // ProcessPressure
                 2003 => "D204",  // ProcessTemperature
-                2004 => "D206",  // SpindleSpeed
-
-                // 刀具状态变量
-                3001 => "D302",  // ScribeKnifeUsageCount
-                3002 => "D304",  // BreakKnifeUsageCount
-
-                // 材料状态变量
-                4001 => "D400",  // CurrentRecipeId
-                4002 => "D420",  // CurrentLotId
-                4003 => "D440",  // CurrentWaferId
-                4004 => "D460",  // CurrentSlotNumber
-
-                // 生产统计变量
-                5001 => "D500",  // TotalProcessedCount
-                5002 => "D502",  // GoodCount
-                5003 => "D504",  // NgCount
-                5004 => "D506",  // YieldRate
-
-                // 系统状态变量
-                6001 => "M200",  // SystemReady
-                6002 => "M201",  // Processing
-                6003 => "M202",  // AlarmActive
-                6004 => "M205",  // AutoMode
 
                 _ => ""
             };
@@ -943,18 +1065,11 @@ namespace DiceEquipmentSystem.PLC.Services
         {
             return ecid switch
             {
-                // 工艺参数常量
-                1001 => "D1000",  // SpeedLimit
-                1002 => "D1002",  // PressureLimit
-                1003 => "D1004",  // TemperatureLimit
-
-                // 刀具参数常量
-                2001 => "D1100",  // ScribeKnifeLifeLimit
-                2002 => "D1102",  // BreakKnifeLifeLimit
-
-                // 系统配置常量
-                3001 => "D1200",  // CycleTimeLimit
-                3002 => "D1202",  // YieldTarget
+                // 使用Common中的标准定义
+                250 => "D250",   // EstablishCommunicationsTimeout
+                310 => "D310",   // AnnotateEventReport
+                311 => "D311",   // ConfigEvents
+                675 => "D675",   // TimeFormat
 
                 _ => ""
             };
@@ -967,12 +1082,29 @@ namespace DiceEquipmentSystem.PLC.Services
         public void Dispose()
         {
             _dataCollectionTimer?.Dispose();
+            _simulationTimer?.Dispose();
             _cancellationTokenSource?.Dispose();
-            DisconnectFromPlc();
-            _mcClient?.Dispose();
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// 模拟状态类
+    /// </summary>
+    internal class SimulationState
+    {
+        public bool IsProcessing { get; set; }
+        public bool IsPaused { get; set; }
+        public bool HasAlarm { get; set; }
+        public string ProcessState { get; set; } = "Ready";
+        public string CurrentRecipeId { get; set; } = "RECIPE001";
+        public bool SlotMappingComplete { get; set; }
+        public bool CassetteStarted { get; set; }
+        public bool FrameStarted { get; set; }
+        public int CurrentFrameNumber { get; set; } = 0;
+        public Dictionary<uint, string>? EventMapping { get; set; }
+        public Action<uint>? EventCallback { get; set; }
     }
 
     /// <summary>

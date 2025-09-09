@@ -183,11 +183,11 @@ namespace DiceEquipmentSystem.Secs.Handlers
         /// <remarks>
         /// S5F3 消息格式:
         /// L,2
-        ///   1. <ALED>   报警启用/禁用代码 (B,1)
+        ///   1. &lt;ALED&gt;   报警启用/禁用代码 (B,1)
         ///   2. L,n      报警ID列表
-        ///      1. <ALID1>
+        ///      1. &lt;ALID1&gt;
         ///      ...
-        ///      n. <ALIDn>
+        ///      n. &lt;ALIDn&gt;
         /// 
         /// 特殊情况：
         /// - 空ALID列表时，根据ALED操作所有报警

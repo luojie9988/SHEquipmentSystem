@@ -358,7 +358,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
 
             #region 设备配置常量 (1-99)
 
-            AddEcidMetadata(metadata, DicerECID.DeviceId,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.DeviceId,
                 name: "DeviceId",
                 format: "U2",
                 units: "",
@@ -366,7 +366,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "设备标识号");
 
-            AddEcidMetadata(metadata, DicerECID.ModelName,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.ModelName,
                 name: "ModelName",
                 format: "A",
                 units: "",
@@ -374,7 +374,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "设备型号");
 
-            AddEcidMetadata(metadata, DicerECID.Manufacturer,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.Manufacturer,
                 name: "Manufacturer",
                 format: "A",
                 units: "",
@@ -382,7 +382,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "制造商名称");
 
-            AddEcidMetadata(metadata, DicerECID.SerialNumber,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.SerialNumber,
                 name: "SerialNumber",
                 format: "A",
                 units: "",
@@ -390,7 +390,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "设备序列号");
 
-            AddEcidMetadata(metadata, DicerECID.SoftwareVersion,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.SoftwareVersion,
                 name: "SoftwareVersion",
                 format: "A",
                 units: "",
@@ -398,7 +398,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "软件版本");
 
-            AddEcidMetadata(metadata, DicerECID.HardwareVersion,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.HardwareVersion,
                 name: "HardwareVersion",
                 format: "A",
                 units: "",
@@ -406,7 +406,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "硬件版本");
 
-            AddEcidMetadata(metadata, DicerECID.MaxWaferSize,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.MaxWaferSize,
                 name: "MaxWaferSize",
                 format: "U4",
                 units: "mm",
@@ -416,7 +416,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: true,
                 description: "最大晶圆尺寸");
 
-            AddEcidMetadata(metadata, DicerECID.MinWaferSize,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.MinWaferSize,
                 name: "MinWaferSize",
                 format: "U4",
                 units: "mm",
@@ -430,7 +430,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
 
             #region 通信参数 (100-199)
 
-            AddEcidMetadata(metadata, DicerECID.T3Timeout,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.T3Timeout,
                 name: "T3Timeout",
                 format: "U4",
                 units: "ms",
@@ -440,7 +440,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "T3回复超时时间");
 
-            AddEcidMetadata(metadata, DicerECID.T5Timeout,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.T5Timeout,
                 name: "T5Timeout",
                 format: "U4",
                 units: "ms",
@@ -450,7 +450,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "T5连接分离超时时间");
 
-            AddEcidMetadata(metadata, DicerECID.T6Timeout,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.T6Timeout,
                 name: "T6Timeout",
                 format: "U4",
                 units: "ms",
@@ -460,7 +460,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "T6控制超时时间");
 
-            AddEcidMetadata(metadata, DicerECID.T7Timeout,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.T7Timeout,
                 name: "T7Timeout",
                 format: "U4",
                 units: "ms",
@@ -470,7 +470,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "T7未选择超时时间");
 
-            AddEcidMetadata(metadata, DicerECID.T8Timeout,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.T8Timeout,
                 name: "T8Timeout",
                 format: "U4",
                 units: "ms",
@@ -480,7 +480,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "T8网络超时时间");
 
-            AddEcidMetadata(metadata, DicerECID.LinkTestInterval,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.LinkTestInterval,
                 name: "LinkTestInterval",
                 format: "U4",
                 units: "ms",
@@ -490,7 +490,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "连接测试间隔");
 
-            AddEcidMetadata(metadata, DicerECID.RetryLimit,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.RetryLimit,
                 name: "RetryLimit",
                 format: "U1",
                 units: "",
@@ -500,7 +500,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
                 isReadOnly: false,
                 description: "重试限制次数");
 
-            AddEcidMetadata(metadata, DicerECID.MaxSpoolSize,
+            AddEcidMetadata(metadata, SemiIdDefinitions.Ecid.MaxSpoolSize,
                 name: "MaxSpoolSize",
                 format: "U4",
                 units: "KB",

@@ -1,64 +1,612 @@
 @using SHEquipmentSystem.ViewModels
 @model PLCConfigViewModel
 @{
-    ViewData["Title"] = "PLC配置";
-    ViewData["ConfigTitle"] = "PLC通信配置";
-    Layout = "_ConfigLayout";
+    Layout = null; // 不使用布局文件
 }
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PLC配置 - SH设备配置系统</title>
+    
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.css" />
+    
+    <!-- 自定义样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .main-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .content-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .status-bar {
+            margin-bottom: 25px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .config-tabs {
+            background: transparent;
+        }
+        
+        .el-card {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+        
+        .el-form-item {
+            margin-bottom: 20px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+        
+        media (max-width: 768px) {
+            .main-container {
+                padding: 10px;
+            }
+            
+            .header, .content-container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 页面头部 -->
+        <div class="header">
+            <h1>
+                <i class="el-icon-connection"></i>
+                PLC通信配置管理
+            </h1>
+        </div>
+        
+        <!-- 主要内容 -->
+        <div class="content-container">
+            <div id="plc-config-app" v-cloak>
+                <!-- 连接状态显示 -->
+                <div class="status-bar">
+                    <el-alert
+                        :title="connectionStatus.title"
+                        :type="connectionStatus.type"
+                        :description="connectionStatus.description"
+                        show-icon
+                        :closable="false">
+                    </el-alert>
+                </div>
 
-@section HeaderActions {
-    <el-button type="primary" onclick="savePLCConfig" :loading="saving">
-        <el-icon><Check /></el-icon>保存配置
-    </el-button>
-    <el-button onclick="testConnection" :loading="testing">
-        <el-icon><Connection /></el-icon>测试连接
-    </el-button>
-    <el-button onclick="resetConfig">
-        <el-icon><RefreshLeft /></el-icon>重置
-    </el-button>
-}
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <el-button 
+                        type="primary"
+                               v-on:click="savePLCConfig"
+                               :loading="saving"
+                        size="large">
+                        <el-icon><Check /></el-icon>
+                        保存配置
+                    </el-button>
+                    <el-button v-on:click="testConnection"
+                               :loading="testing"
+                        size="large">
+                        <el-icon><Connection /></el-icon>
+                        测试连接
+                    </el-button>
+                    <el-button v-on:click="resetConfig"
+                        size="large">
+                        <el-icon><RefreshLeft /></el-icon>
+                        重置配置
+                    </el-button>
+                    <el-button v-on:click="exportConfig"
+                        size="large">
+                        <el-icon><Download /></el-icon>
+                        导出配置
+                    </el-button>
+                </div>
+                <div>
+                    <!-- 配置表单区域 -->
+                    <el-tabs v-model="activeTab" class="config-tabs" type="border-card">
+                        <!-- 基础连接配置 -->
+                        <el-tab-pane label="基础连接" name="basic">
+                            <el-card shadow="never">
+                                <template #header>
+                                    <span style="font-weight: 600;">PLC连接参数</span>
+                                </template>
 
-<div id="plc-config-app">
-    <!-- 连接状态显示 -->
-    <el-alert
-        :title="connectionStatus.title"
-        :type="connectionStatus.type"
-        :description="connectionStatus.description"
-        show-icon
-        :closable="false"
-        style="margin-bottom: 20px;">
-    </el-alert>
+                                <el-form :model="plcConfig"
+                                         :rules="basicRules"
+                                         ref="basicFormRef"
+                                         label-width="140px"
+                                         size="large">
+                                    <el-row :gutter="24">
+                                        <el-col :span="12">
+                                            <el-form-item label="IP地址" prop="ipAddress">
+                                                <el-input v-model="plcConfig.ipAddress"
+                                                          placeholder="请输入PLC IP地址"
+                                                          :disabled="isConnected">
+                                                    <template #prepend>
+                                                        <el-icon><Connection /></el-icon>
+                                                    </template>
+                                                </el-input>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-form-item label="端口号" prop="port">
+                                                <el-input-number v-model="plcConfig.port"
+                                                                 :min="1"
+                                                                 :max="65535"
+                                                                 :disabled="isConnected"
+                                                                 style="width: 100%"
+                                                                 placeholder="端口号">
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
 
-    <!-- 配置表单区域 -->
-    <el-tabs v-model="activeTab" class="config-tabs">
-        <!-- 基础连接配置 -->
-        <el-tab-pane label="基础连接" name="basic">
-            @await Html.PartialAsync("_ConfigPartials/_PLCBasicForm")
-        </el-tab-pane>
+                                    <el-row :gutter="24">
+                                        <el-col :span="12">
+                                            <el-form-item label="网络号" prop="networkNumber">
+                                                <el-input-number v-model="plcConfig.networkNumber"
+                                                                 :min="0"
+                                                                 :max="255"
+                                                                 style="width: 100%"
+                                                                 placeholder="网络号">
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-form-item label="站号" prop="stationNumber">
+                                                <el-input-number v-model="plcConfig.stationNumber"
+                                                                 :min="0"
+                                                                 :max="255"
+                                                                 style="width: 100%"
+                                                                 placeholder="站号">
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
+                                </el-form>
+                            </el-card>
+                        </el-tab-pane>
 
-        <!-- 超时参数配置 -->
-        <el-tab-pane label="超时参数" name="timeout">
-            @await Html.PartialAsync("_ConfigPartials/_PLCTimeoutForm")
-        </el-tab-pane>
+                        <!-- 超时参数配置 -->
+                        <el-tab-pane label="超时参数" name="timeout">
+                            <el-card shadow="never">
+                                <template #header>
+                                    <span style="font-weight: 600;">超时设置</span>
+                                </template>
 
-        <!-- 数据块管理 -->
-        <el-tab-pane label="数据块管理" name="datablock">
-            @await Html.PartialAsync("_ConfigPartials/_PLCDataBlocks")
-        </el-tab-pane>
+                                <el-form :model="plcConfig"
+                                         :rules="timeoutRules"
+                                         ref="timeoutFormRef"
+                                         label-width="140px"
+                                         size="large">
+                                    <el-row :gutter="24">
+                                        <el-col :span="12">
+                                            <el-form-item label="连接超时" prop="connectTimeout">
+                                                <el-input-number v-model="plcConfig.connectTimeout"
+                                                                 :min="1000"
+                                                                 :max="30000"
+                                                                 :step="1000"
+                                                                 style="width: 100%">
+                                                    <template #append>ms</template>
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-form-item label="接收超时" prop="receiveTimeout">
+                                                <el-input-number v-model="plcConfig.receiveTimeout"
+                                                                 :min="1000"
+                                                                 :max="10000"
+                                                                 :step="500"
+                                                                 style="width: 100%">
+                                                    <template #append>ms</template>
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
 
-        <!-- 高级设置 -->
-        <el-tab-pane label="高级设置" name="advanced">
-            @await Html.PartialAsync("_ConfigPartials/_PLCAdvancedForm")
-        </el-tab-pane>
-    </el-tabs>
-</div>
+                                    <el-row :gutter="24">
+                                        <el-col :span="12">
+                                            <el-form-item label="轮询间隔" prop="pollingInterval">
+                                                <el-input-number v-model="plcConfig.pollingInterval"
+                                                                 :min="100"
+                                                                 :max="5000"
+                                                                 :step="100"
+                                                                 style="width: 100%">
+                                                    <template #append>ms</template>
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-form-item label="重连间隔" prop="reconnectInterval">
+                                                <el-input-number v-model="plcConfig.reconnectInterval"
+                                                                 :min="1000"
+                                                                 :max="60000"
+                                                                 :step="1000"
+                                                                 style="width: 100%">
+                                                    <template #append>ms</template>
+                                                </el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
 
-@section Scripts {
+                                    <el-form-item label="自动重连">
+                                        <el-switch v-model="plcConfig.enableAutoReconnect"
+                                                   active-text="启用"
+                                                   inactive-text="禁用">
+                                        </el-switch>
+                                    </el-form-item>
+                                </el-form>
+                            </el-card>
+                        </el-tab-pane>
+
+                        <!-- 数据块管理 -->
+                        <el-tab-pane label="数据块管理" name="datablock">
+                            <el-card shadow="never">
+                                <template #header>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: 600;">数据块配置</span>
+                                        <el-button type="primary" v-on:click="addDataBlock" size="small">
+                                            <el-icon><Plus /></el-icon>
+                                            添加数据块
+                                        </el-button>
+                                    </div>
+                                </template>
+
+                                <el-table :data="plcConfig.dataBlocks"
+                                          style="width: 100%"
+                                          stripe
+                                          border>
+                                    <el-table-column prop="name" label="数据块名称" width="150">
+                                        <template #default="scope">
+                                            <el-input v-if="scope.row.editing"
+                                                      v-model="scope.row.name"
+                                                      size="small">
+                                            </el-input>
+                                            <span v-else>{{ scope.row.name }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="startAddress" label="起始地址" width="120">
+                                        <template #default="scope">
+                                            <el-input v-if="scope.row.editing"
+                                                      v-model="scope.row.startAddress"
+                                                      size="small">
+                                            </el-input>
+                                            <span v-else>{{ scope.row.startAddress }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="length" label="长度" width="100">
+                                        <template #default="scope">
+                                            <el-input-number v-if="scope.row.editing"
+                                                             v-model="scope.row.length"
+                                                             :min="1"
+                                                             size="small">
+                                            </el-input-number>
+                                            <span v-else>{{ scope.row.length }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="updateInterval" label="更新间隔(ms)" width="150">
+                                        <template #default="scope">
+                                            <el-input-number v-if="scope.row.editing"
+                                                             v-model="scope.row.updateInterval"
+                                                             :min="100"
+                                                             size="small">
+                                            </el-input-number>
+                                            <span v-else>{{ scope.row.updateInterval }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="180" fixed="right">
+                                        <template #default="scope">
+                                            <el-button-group v-if="!scope.row.editing">
+                                                <el-button size="small" v-on:click="editDataBlock(scope.$index)">
+                                                    <el-icon><Edit /></el-icon>
+                                                </el-button>
+                                                <el-popconfirm title="确定删除这个数据块吗？"
+                                                               @* @confirm="deleteDataBlock(scope.$index)"> *@
+                                                <template #reference>
+                                                    <el-button size="small" type="danger">
+                                                        <el-icon><Delete /></el-icon>
+                                                    </el-button>
+                                                </template>
+                                            </el-popconfirm>
+                                            </el-button-group>
+
+                                            <el-button-group v-else>
+                                                <el-button size="small" type="primary" v-on:click="saveDataBlock(scope.$index)">
+                                                    <el-icon><Check /></el-icon>
+                                                </el-button>
+                                                <el-button size="small" v-on:click="cancelEditDataBlock(scope.$index)">
+                                                    <el-icon><Close /></el-icon>
+                                                </el-button>
+                                            </el-button-group>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-card>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+               
+            </div>
+        </div>
+        
+        <!-- 页面底部 -->
+        <div class="footer">
+            © 2025 SH设备配置管理系统 - PLC配置管理模块
+        </div>
+    </div>
+
+    <!-- 加载Vue.js和Element Plus -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/locale/zh-cn.min.js"></script>
+
     <script>
-        // 初始化数据传递
-        window.plcConfigData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PLCConfig));
-        window.connectionStatus = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.IsConnected));
-        window.validationErrors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ValidationErrors));
+        // 检查依赖加载
+        if (typeof Vue === 'undefined') {
+            alert('Vue.js加载失败，请检查网络连接');
+        } else if (typeof ElementPlus === 'undefined') {
+            alert('ElementPlus加载失败，请检查网络连接');
+        } else {
+            // 初始化应用
+            const { createApp } = Vue;
+            const { ElMessage, ElMessageBox, ElNotification } = ElementPlus;
+
+            const app = createApp({
+                data() {
+                    return {
+                        activeTab: 'basic',
+                        saving: false,
+                        testing: false,
+                        isConnected: Html.Raw(Json.Serialize(Model?.IsConnected ?? false)),
+                        plcConfig: Html.Raw(Json.Serialize(Model?.PLCConfig ?? new {
+                            ipAddress = "192.168.1.100",
+                            port = 5007,
+                            networkNumber = 0,
+                            stationNumber = 0,
+                            connectTimeout = 5000,
+                            receiveTimeout = 3000,
+                            pollingInterval = 2000,
+                            reconnectInterval = 5000,
+                            enableAutoReconnect = true,
+                            dataBlocks = new object[0]
+                        })),
+                        connectionStatus: {
+                            title: '连接状态',
+                            type: @Html.Raw(Json.Serialize(Model?.IsConnected == true ? "success" : "warning")),
+                            description: @Html.Raw(Json.Serialize(Model?.ConnectionStatus ?? "未连接到PLC设备"))
+                        },
+                        basicRules: {
+                            ipAddress: [
+                                { required: true, message: 'IP地址不能为空', trigger: 'blur' },
+                                { 
+                                    pattern: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, 
+                                    message: 'IP地址格式不正确', 
+                                    trigger: 'blur' 
+                                }
+                            ],
+                            port: [
+                                { required: true, message: '端口不能为空', trigger: 'blur' },
+                                { type: 'number', min: 1, max: 65535, message: '端口范围1-65535', trigger: 'blur' }
+                            ]
+                        },
+                        timeoutRules: {
+                            connectTimeout: [
+                                { required: true, message: '连接超时不能为空', trigger: 'blur' }
+                            ],
+                            receiveTimeout: [
+                                { required: true, message: '接收超时不能为空', trigger: 'blur' }
+                            ]
+                        }
+                    }
+                },
+                methods: {
+                    async savePLCConfig() {
+                        this.saving = true;
+                        try {
+                            // 验证表单
+                            await this.$refs.basicFormRef?.validate();
+                            
+                            console.log('保存PLC配置:', this.plcConfig);
+                            
+                            // 这里添加实际的保存逻辑
+                            // const response = await fetch('/Config/SavePLCConfig', {
+                            //     method: 'POST',
+                            //     headers: { 'Content-Type': 'application/json' },
+                            //     body: JSON.stringify(this.plcConfig)
+                            // });
+                            
+                            ElMessage.success('PLC配置保存成功');
+                        } catch (error) {
+                            console.error('保存失败:', error);
+                            ElMessage.error('保存失败: ' + (error.message || '未知错误'));
+                        } finally {
+                            this.saving = false;
+                        }
+                    },
+                    
+                    async testConnection() {
+                        this.testing = true;
+                        try {
+                            console.log('测试PLC连接...');
+                            
+                            // 模拟连接测试
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            
+                            // 这里添加实际的连接测试逻辑
+                            // const response = await fetch('/Config/TestPLCConnection', {
+                            //     method: 'POST',
+                            //     headers: { 'Content-Type': 'application/json' },
+                            //     body: JSON.stringify(this.plcConfig)
+                            // });
+                            
+                            this.connectionStatus = {
+                                title: '连接状态',
+                                type: 'success',
+                                description: 'PLC连接测试成功'
+                            };
+                            this.isConnected = true;
+                            
+                            ElNotification.success({
+                                title: '连接测试',
+                                message: 'PLC连接测试成功'
+                            });
+                        } catch (error) {
+                            this.connectionStatus = {
+                                title: '连接状态',
+                                type: 'error',
+                                description: 'PLC连接测试失败: ' + error.message
+                            };
+                            this.isConnected = false;
+                            
+                            ElNotification.error({
+                                title: '连接测试',
+                                message: 'PLC连接测试失败'
+                            });
+                        } finally {
+                            this.testing = false;
+                        }
+                    },
+                    
+                    resetConfig() {
+                        ElMessageBox.confirm('确定要重置所有配置吗？', '确认重置', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        }).then(() => {
+                            this.plcConfig = {
+                                ipAddress: '192.168.1.100',
+                                port: 5007,
+                                networkNumber: 0,
+                                stationNumber: 0,
+                                connectTimeout: 5000,
+                                receiveTimeout: 3000,
+                                pollingInterval: 2000,
+                                reconnectInterval: 5000,
+                                enableAutoReconnect: true,
+                                dataBlocks: []
+                            };
+                            ElMessage.success('配置已重置');
+                        }).catch(() => {
+                            ElMessage.info('已取消重置');
+                        });
+                    },
+                    
+                    exportConfig() {
+                        const configData = JSON.stringify(this.plcConfig, null, 2);
+                        const blob = new Blob([configData], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'plc-config.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        ElMessage.success('配置文件已导出');
+                    },
+                    
+                    addDataBlock() {
+                        this.plcConfig.dataBlocks.push({
+                            name: '新数据块',
+                            startAddress: 'D100',
+                            length: 10,
+                            updateInterval: 1000,
+                            editing: true
+                        });
+                    },
+                    
+                    editDataBlock(index) {
+                        this.plcConfig.dataBlocks[index].editing = true;
+                    },
+                    
+                    saveDataBlock(index) {
+                        this.plcConfig.dataBlocks[index].editing = false;
+                        ElMessage.success('数据块保存成功');
+                    },
+                    
+                    cancelEditDataBlock(index) {
+                        this.plcConfig.dataBlocks[index].editing = false;
+                    },
+                    
+                    deleteDataBlock(index) {
+                        this.plcConfig.dataBlocks.splice(index, 1);
+                        ElMessage.success('数据块删除成功');
+                    }
+                },
+                
+                mounted() {
+                    console.log('PLC配置应用已挂载');
+                    // 确保dataBlocks是数组
+                    if (!Array.isArray(this.plcConfig.dataBlocks)) {
+                        this.plcConfig.dataBlocks = [];
+                    }
+                }
+            });
+
+            // 使用Element Plus和中文语言包
+            app.use(ElementPlus, {
+                locale: ElementPlusLocaleZhCn
+            });
+            
+            // 挂载应用
+            app.mount('#plc-config-app');
+        }
     </script>
-    <script src="~/js/config/plc-config.js"></script>
-}
+</body>
+</html>

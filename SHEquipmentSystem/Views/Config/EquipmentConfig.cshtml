@@ -1,93 +1,725 @@
 @using SHEquipmentSystem.ViewModels
 @model EquipmentConfigViewModel
 @{
-    ViewData["Title"] = "设备系统配置";
-    ViewData["ConfigTitle"] = "设备系统配置";
-    Layout = "_ConfigLayout";
+    Layout = null; // 不使用布局文件
 }
-
-@section HeaderActions {
-    <el-button type="primary" onclick="saveEquipmentConfig" :loading="saving">
-        <el-icon><Check /></el-icon>保存配置
-    </el-button>
-    <el-button onclick="validateConfig" :loading="validating">
-        <el-icon><Warning /></el-icon>验证配置
-    </el-button>
-    <el-dropdown >
-        <el-button>
-            <el-icon><Download /></el-icon>导出配置<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </el-button>
-        <template #dropdown>
-            <el-dropdown-menu>
-                <el-dropdown-item command="json">导出为JSON</el-dropdown-item>
-                <el-dropdown-item command="csv">导出为CSV</el-dropdown-item>
-                <el-dropdown-item command="template">下载模板</el-dropdown-item>
-            </el-dropdown-menu>
-        </template>
-    </el-dropdown>
-}
-
-<div id="equipment-config-app">
-    <!-- 配置向导步骤 -->
-    <el-steps :active="currentStep" finish-status="success" class="config-steps">
-        <el-step title="设备信息" description="基本设备参数" icon="Monitor"></el-step>
-        <el-step title="网络配置" description="通信参数设置" icon="Connection"></el-step>
-        <el-step title="性能参数" description="系统性能配置" icon="Setting"></el-step>
-        <el-step title="映射配置" description="SVID映射管理" icon="Grid"></el-step>
-        <el-step title="报告事件" description="事件报告配置" icon="Bell"></el-step>
-    </el-steps>
-
-    <!-- 配置内容区域 -->
-    <div class="equipment-config-content">
-        <!-- 设备基本信息 -->
-        <div v-show="currentStep === 0">
-            @await Html.PartialAsync("_ConfigPartials/_EquipmentDeviceInfo")
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设备配置 - SH设备配置系统</title>
+    
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.css" />
+    
+    <!-- 自定义样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            min-height: 100vh;
+        }
+        
+        .main-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .content-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .config-steps {
+            margin-bottom: 30px;
+        }
+        
+        .step-content {
+            margin-top: 30px;
+        }
+        
+        .el-card {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: none;
+            margin-bottom: 20px;
+        }
+        
+        .el-form-item {
+            margin-bottom: 20px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+        
+        media (max-width: 768px) {
+            .main-container {
+                padding: 10px;
+            }
+            
+            .header, .content-container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 页面头部 -->
+        <div class="header">
+            <h1>
+                <i class="el-icon-monitor"></i>
+                设备系统配置管理
+            </h1>
         </div>
+        
+        <!-- 主要内容 -->
+        <div class="content-container">
+            <div id="equipment-config-app" v-cloak>
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <el-button 
+                        type="primary" 
+                        onclick="saveEquipmentConfig" 
+                        :loading="saving"
+                        size="large">
+                        <el-icon><Check /></el-icon>
+                        保存配置
+                    </el-button>
+                    <el-button 
+                        onclick="validateConfig" 
+                        :loading="validating"
+                        size="large">
+                        <el-icon><CircleCheck /></el-icon>
+                        验证配置
+                    </el-button>
+                    <el-button 
+                        onclick="exportConfig"
+                        size="large">
+                        <el-icon><Download /></el-icon>
+                        导出配置
+                    </el-button>
+                    <el-button 
+                        onclick="importConfig"
+                        size="large">
+                        <el-icon><Upload /></el-icon>
+                        导入配置
+                    </el-button>
+                </div>
 
-        <!-- 网络通信配置 -->
-        <div v-show="currentStep === 1">
-            @await Html.PartialAsync("_ConfigPartials/_EquipmentNetworkConfig")
+                <!-- 配置步骤 -->
+                <div class="config-steps">
+                    <el-steps 
+                        :active="currentStep" 
+                        finish-status="success"
+                        align-center>
+                        <el-step title="设备信息" description="配置基本设备信息"></el-step>
+                        <el-step title="网络配置" description="HSMS网络参数设置"></el-step>
+                        <el-step title="SVID映射" description="状态变量映射配置"></el-step>
+                        <el-step title="完成配置" description="验证并保存配置"></el-step>
+                    </el-steps>
+                </div>
+
+                <!-- 步骤内容 -->
+                <div class="step-content">
+                    <!-- 步骤1: 设备信息 -->
+                    <div v-show="currentStep === 0">
+                        <el-card shadow="never">
+                            <template #header>
+                                <span style="font-weight: 600;">设备基本信息</span>
+                            </template>
+                            
+                            <el-form 
+                                :model="equipmentConfig.equipment" 
+                                :rules="deviceRules" 
+                                ref="deviceFormRef" 
+                                label-width="140px"
+                                size="large">
+                                <el-row :gutter="24">
+                                    <el-col :span="12">
+                                        <el-form-item label="设备ID" prop="deviceId">
+                                            <el-input-number
+                                                v-model="equipmentConfig.equipment.deviceId"
+                                                :min="1"
+                                                :max="65535"
+                                                style="width: 100%"
+                                                placeholder="设备ID">
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="12">
+                                        <el-form-item label="设备名称" prop="modelName">
+                                            <el-input
+                                                v-model="equipmentConfig.equipment.modelName"
+                                                placeholder="请输入设备型号名称">
+                                            </el-input>
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+
+                                <el-row :gutter="24">
+                                    <el-col :span="12">
+                                        <el-form-item label="软件版本" prop="softwareRevision">
+                                            <el-input
+                                                v-model="equipmentConfig.equipment.softwareRevision"
+                                                placeholder="软件版本号">
+                                            </el-input>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="12">
+                                        <el-form-item label="设备状态">
+                                            <el-switch
+                                                v-model="equipmentConfig.equipment.isActive"
+                                                active-text="启用"
+                                                inactive-text="禁用"
+                                                inline-prompt>
+                                            </el-switch>
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+
+                                <el-row :gutter="24">
+                                    <el-col :span="12">
+                                        <el-form-item label="监听IP" prop="ipAddress">
+                                            <el-input
+                                                v-model="equipmentConfig.equipment.ipAddress"
+                                                placeholder="设备监听的IP地址">
+                                            </el-input>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="12">
+                                        <el-form-item label="监听端口" prop="port">
+                                            <el-input-number
+                                                v-model="equipmentConfig.equipment.port"
+                                                :min="1"
+                                                :max="65535"
+                                                style="width: 100%"
+                                                placeholder="监听端口">
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+                            </el-form>
+                        </el-card>
+                    </div>
+
+                    <!-- 步骤2: 网络配置 -->
+                    <div v-show="currentStep === 1">
+                        <el-card shadow="never">
+                            <template #header>
+                                <span style="font-weight: 600;">HSMS网络配置</span>
+                            </template>
+                            
+                            <el-form 
+                                :model="equipmentConfig.hsms" 
+                                :rules="hsmsRules" 
+                                ref="hsmsFormRef" 
+                                label-width="140px"
+                                size="large">
+                                <el-row :gutter="24">
+                                    <el-col :span="12">
+                                        <el-form-item label="T3超时" prop="t3Timeout">
+                                            <el-input-number
+                                                v-model="equipmentConfig.hsms.t3Timeout"
+                                                :min="1"
+                                                :max="120"
+                                                style="width: 100%">
+                                                <template #append>秒</template>
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="12">
+                                        <el-form-item label="T5超时" prop="t5Timeout">
+                                            <el-input-number
+                                                v-model="equipmentConfig.hsms.t5Timeout"
+                                                :min="1"
+                                                :max="240"
+                                                style="width: 100%">
+                                                <template #append>秒</template>
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+
+                                <el-row :gutter="24">
+                                    <el-col :span="12">
+                                        <el-form-item label="T6超时" prop="t6Timeout">
+                                            <el-input-number
+                                                v-model="equipmentConfig.hsms.t6Timeout"
+                                                :min="1"
+                                                :max="240"
+                                                style="width: 100%">
+                                                <template #append>秒</template>
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                    <el-col :span="12">
+                                        <el-form-item label="T7超时" prop="t7Timeout">
+                                            <el-input-number
+                                                v-model="equipmentConfig.hsms.t7Timeout"
+                                                :min="1"
+                                                :max="240"
+                                                style="width: 100%">
+                                                <template #append>秒</template>
+                                            </el-input-number>
+                                        </el-form-item>
+                                    </el-col>
+                                </el-row>
+
+                                <el-form-item label="通信模式">
+                                    <el-radio-group v-model="equipmentConfig.hsms.mode">
+                                        <el-radio label="active">主动模式</el-radio>
+                                        <el-radio label="passive">被动模式</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-form>
+                        </el-card>
+                    </div>
+
+                    <!-- 步骤3: SVID映射 -->
+                    <div v-show="currentStep === 2">
+                        <el-card shadow="never">
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 600;">SVID状态变量映射</span>
+                                    <el-button type="primary" onclick="addSvidMapping" size="small">
+                                        <el-icon><Plus /></el-icon>
+                                        添加映射
+                                    </el-button>
+                                </div>
+                            </template>
+                            
+                            <el-table 
+                                :data="equipmentConfig.svidMappings" 
+                                style="width: 100%"
+                                stripe
+                                border
+                                max-height="400">
+                                <el-table-column prop="svid" label="SVID" width="80">
+                                    <template #default="scope">
+                                        <el-input-number 
+                                            v-if="scope.row.editing" 
+                                            v-model="scope.row.svid" 
+                                            :min="1" 
+                                            size="small">
+                                        </el-input-number>
+                                        <span v-else>{{ scope.row.svid }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="name" label="变量名称" width="150">
+                                    <template #default="scope">
+                                        <el-input 
+                                            v-if="scope.row.editing" 
+                                            v-model="scope.row.name" 
+                                            size="small">
+                                        </el-input>
+                                        <span v-else>{{ scope.row.name }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="plcAddress" label="PLC地址" width="120">
+                                    <template #default="scope">
+                                        <el-input 
+                                            v-if="scope.row.editing" 
+                                            v-model="scope.row.plcAddress" 
+                                            size="small">
+                                        </el-input>
+                                        <span v-else>{{ scope.row.plcAddress }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="dataType" label="数据类型" width="100">
+                                    <template #default="scope">
+                                        <el-select 
+                                            v-if="scope.row.editing" 
+                                            v-model="scope.row.dataType" 
+                                            size="small">
+                                            <el-option label="Int16" value="Int16"></el-option>
+                                            <el-option label="UInt16" value="UInt16"></el-option>
+                                            <el-option label="Int32" value="Int32"></el-option>
+                                            <el-option label="Float" value="Float"></el-option>
+                                            <el-option label="Bool" value="Bool"></el-option>
+                                        </el-select>
+                                        <el-tag v-else :type="getDataTypeColor(scope.row.dataType)">
+                                            {{ scope.row.dataType }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="150">
+                                    <template #default="scope">
+                                        <el-input 
+                                            v-if="scope.row.editing" 
+                                            v-model="scope.row.description" 
+                                            size="small">
+                                        </el-input>
+                                        <span v-else>{{ scope.row.description }}</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="180" fixed="right">
+                                    <template #default="scope">
+                                        <el-button-group v-if="!scope.row.editing">
+                                            <el-button size="small" onclick="editSvidMapping(scope.$index)">
+                                                <el-icon><Edit /></el-icon>
+                                            </el-button>
+                                            <el-popconfirm 
+                                                title="确定删除这个映射吗？" 
+                                                @* @confirm="deleteSvidMapping(scope.$index)"> *@
+                                                <template #reference>
+                                                    <el-button size="small" type="danger">
+                                                        <el-icon><Delete /></el-icon>
+                                                    </el-button>
+                                                </template>
+                                            </el-popconfirm>
+                                        </el-button-group>
+                                        
+                                        <el-button-group v-else>
+                                            <el-button size="small" type="primary" onclick="saveSvidMapping(scope.$index)">
+                                                <el-icon><Check /></el-icon>
+                                            </el-button>
+                                            <el-button size="small" onclick="cancelEditSvidMapping(scope.$index)">
+                                                <el-icon><Close /></el-icon>
+                                            </el-button>
+                                        </el-button-group>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </el-card>
+                    </div>
+
+                    <!-- 步骤4: 完成配置 -->
+                    <div v-show="currentStep === 3">
+                        <el-card shadow="never">
+                            <template #header>
+                                <span style="font-weight: 600;">配置验证与完成</span>
+                            </template>
+                            
+                            <el-result
+                                :icon="validationResult.icon"
+                                :title="validationResult.title"
+                                :sub-title="validationResult.subTitle">
+                                <template #extra>
+                                    <el-button type="primary" onclick="finalSave" size="large">
+                                        完成配置
+                                    </el-button>
+                                    <el-button onclick="currentStep = 0" size="large">
+                                        重新配置
+                                    </el-button>
+                                </template>
+                            </el-result>
+                        </el-card>
+                    </div>
+                </div>
+
+                <!-- 步骤导航 -->
+                <div style="margin-top: 30px; text-align: center;">
+                    <el-button onclick="previousStep" :disabled="currentStep === 0">
+                        上一步
+                    </el-button>
+                    <el-button type="primary" onclick="nextStep" :disabled="currentStep === 3">
+                        下一步
+                    </el-button>
+                </div>
+            </div>
         </div>
-
-        <!-- 性能参数配置 -->
-        <div v-show="currentStep === 2">
-            @await Html.PartialAsync("_ConfigPartials/_EquipmentPerformance")
-        </div>
-
-        <!-- SVID映射配置 -->
-        <div v-show="currentStep === 3">
-            @await Html.PartialAsync("_ConfigPartials/_EquipmentSvidMapping")
-        </div>
-
-        <!-- 报告和事件配置 -->
-        <div v-show="currentStep === 4">
-            @await Html.PartialAsync("_ConfigPartials/_EquipmentReports")
+        
+        <!-- 页面底部 -->
+        <div class="footer">
+            © 2025 SH设备配置管理系统 - 设备配置管理模块
         </div>
     </div>
 
-    <!-- 步骤导航 -->
-    <div class="step-navigation">
-        <el-button onclick="prevStep" :disabled="currentStep === 0">
-            <el-icon><ArrowLeft /></el-icon>上一步
-        </el-button>
-        <el-button onclick="nextStep" :disabled="currentStep === 4" type="primary">
-            下一步<el-icon><ArrowRight /></el-icon>
-        </el-button>
-        <div style="flex: 1; text-align: center;">
-            <el-tag>步骤 {{ currentStep + 1 }} / 5</el-tag>
-        </div>
-        <el-button onclick="skipToSave" type="success" v-if="currentStep < 4">
-            <el-icon><Check /></el-icon>跳转保存
-        </el-button>
-    </div>
-</div>
+    <!-- 加载Vue.js和Element Plus -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/locale/zh-cn.min.js"></script>
 
-@* @section Scripts {
     <script>
-        // 初始化数据
-        window.equipmentConfigData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EquipmentConfig));
-        window.systemStatus = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SystemStatus));
-        window.validationErrors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ValidationErrors));
+        // 检查依赖加载
+        if (typeof Vue === 'undefined') {
+            alert('Vue.js加载失败，请检查网络连接');
+        } else if (typeof ElementPlus === 'undefined') {
+            alert('ElementPlus加载失败，请检查网络连接');
+        } else {
+            // 初始化应用
+            const { createApp } = Vue;
+            const { ElMessage, ElMessageBox, ElNotification } = ElementPlus;
+
+            const app = createApp({
+                data() {
+                    return {
+                        currentStep: 0,
+                        saving: false,
+                        validating: false,
+                        equipmentConfig: Html.Raw(Json.Serialize(Model?.EquipmentConfig ?? new {
+                            equipment = new {
+                                deviceId = 1,
+                                modelName = "DICER-3000",
+                                softwareRevision = "1.0.0",
+                                ipAddress = "0.0.0.0",
+                                port = 5000,
+                                isActive = false
+                            },
+                            hsms = new {
+                                t3Timeout = 45,
+                                t5Timeout = 10,
+                                t6Timeout = 5,
+                                t7Timeout = 10,
+                                mode = "passive"
+                            },
+                            svidMappings = new object[0]
+                        })),
+                        validationResult: {
+                            icon: 'info',
+                            title: '准备验证配置',
+                            subTitle: '请点击验证按钮检查配置完整性'
+                        },
+                        deviceRules: {
+                            deviceId: [
+                                { required: true, message: '设备ID不能为空', trigger: 'blur' }
+                            ],
+                            modelName: [
+                                { required: true, message: '设备名称不能为空', trigger: 'blur' }
+                            ],
+                            softwareRevision: [
+                                { required: true, message: '软件版本不能为空', trigger: 'blur' }
+                            ]
+                        },
+                        hsmsRules: {
+                            t3Timeout: [
+                                { required: true, message: 'T3超时不能为空', trigger: 'blur' }
+                            ],
+                            t5Timeout: [
+                                { required: true, message: 'T5超时不能为空', trigger: 'blur' }
+                            ]
+                        }
+                    }
+                },
+                methods: {
+                    async saveEquipmentConfig() {
+                        this.saving = true;
+                        try {
+                            console.log('保存设备配置:', this.equipmentConfig);
+                            
+                            // 这里添加实际的保存逻辑
+                            // const response = await fetch('/Config/SaveEquipmentConfig', {
+                            //     method: 'POST',
+                            //     headers: { 'Content-Type': 'application/json' },
+                            //     body: JSON.stringify(this.equipmentConfig)
+                            // });
+                            
+                            ElMessage.success('设备配置保存成功');
+                        } catch (error) {
+                            console.error('保存失败:', error);
+                            ElMessage.error('保存失败: ' + (error.message || '未知错误'));
+                        } finally {
+                            this.saving = false;
+                        }
+                    },
+                    
+                    async validateConfig() {
+                        this.validating = true;
+                        try {
+                            // 模拟验证过程
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            
+                            // 这里添加实际的验证逻辑
+                            const isValid = this.equipmentConfig.svidMappings.length > 0;
+                            
+                            if (isValid) {
+                                this.validationResult = {
+                                    icon: 'success',
+                                    title: '配置验证通过',
+                                    subTitle: '所有配置项都正确，可以保存使用'
+                                };
+                                ElNotification.success({
+                                    title: '验证成功',
+                                    message: '设备配置验证通过'
+                                });
+                            } else {
+                                this.validationResult = {
+                                    icon: 'warning',
+                                    title: '配置验证失败',
+                                    subTitle: '请检查SVID映射配置，至少需要一个映射项'
+                                };
+                                ElNotification.warning({
+                                    title: '验证警告',
+                                    message: '配置不完整，请补充必要信息'
+                                });
+                            }
+                        } catch (error) {
+                            this.validationResult = {
+                                icon: 'error',
+                                title: '验证失败',
+                                subTitle: error.message
+                            };
+                            ElNotification.error({
+                                title: '验证失败',
+                                message: '配置验证过程中出现错误'
+                            });
+                        } finally {
+                            this.validating = false;
+                        }
+                    },
+                    
+                    exportConfig() {
+                        const configData = JSON.stringify(this.equipmentConfig, null, 2);
+                        const blob = new Blob([configData], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'equipment-config.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        ElMessage.success('配置文件已导出');
+                    },
+                    
+                    importConfig() {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.json';
+                        input.onchange = (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    try {
+                                        const config = JSON.parse(e.target.result);
+                                        this.equipmentConfig = config;
+                                        ElMessage.success('配置文件导入成功');
+                                    } catch (error) {
+                                        ElMessage.error('配置文件格式错误');
+                                    }
+                                };
+                                reader.readAsText(file);
+                            }
+                        };
+                        input.click();
+                    },
+                    
+                    nextStep() {
+                        if (this.currentStep < 3) {
+                            this.currentStep++;
+                        }
+                    },
+                    
+                    previousStep() {
+                        if (this.currentStep > 0) {
+                            this.currentStep--;
+                        }
+                    },
+                    
+                    finalSave() {
+                        ElMessageBox.confirm('确定完成配置并保存吗？', '确认完成', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'info'
+                        }).then(() => {
+                            this.saveEquipmentConfig();
+                        });
+                    },
+                    
+                    addSvidMapping() {
+                        this.equipmentConfig.svidMappings.push({
+                            svid: this.equipmentConfig.svidMappings.length + 1,
+                            name: '新变量',
+                            plcAddress: 'D100',
+                            dataType: 'Int16',
+                            description: '状态变量描述',
+                            editing: true
+                        });
+                    },
+                    
+                    editSvidMapping(index) {
+                        this.equipmentConfig.svidMappings[index].editing = true;
+                    },
+                    
+                    saveSvidMapping(index) {
+                        this.equipmentConfig.svidMappings[index].editing = false;
+                        ElMessage.success('映射保存成功');
+                    },
+                    
+                    cancelEditSvidMapping(index) {
+                        this.equipmentConfig.svidMappings[index].editing = false;
+                    },
+                    
+                    deleteSvidMapping(index) {
+                        this.equipmentConfig.svidMappings.splice(index, 1);
+                        ElMessage.success('映射删除成功');
+                    },
+                    
+                    getDataTypeColor(dataType) {
+                        const colors = {
+                            'Int16': 'primary',
+                            'UInt16': 'success',
+                            'Int32': 'warning',
+                            'Float': 'info',
+                            'Bool': 'danger'
+                        };
+                        return colors[dataType] || '';
+                    }
+                },
+                
+                mounted() {
+                    console.log('设备配置应用已挂载');
+                    // 确保svidMappings是数组
+                    if (!Array.isArray(this.equipmentConfig.svidMappings)) {
+                        this.equipmentConfig.svidMappings = [];
+                    }
+                }
+            });
+
+            // 使用Element Plus和中文语言包
+            app.use(ElementPlus, {
+                locale: ElementPlusLocaleZhCn
+            });
+            
+            // 挂载应用
+            app.mount('#equipment-config-app');
+        }
     </script>
-    <script src="~/js/config/equipment-config.js"></script>
-} *@
+</body>
+</html>

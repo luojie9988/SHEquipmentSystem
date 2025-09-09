@@ -444,6 +444,42 @@ namespace DiceEquipmentSystem.Services
         }
 
         /// <summary>
+        /// 检查通信是否已启用
+        /// </summary>
+        public async Task<bool> IsCommunicationEnabledAsync()
+        {
+            return await Task.Run(() =>
+            {
+                _stateLock.EnterReadLock();
+                try
+                {
+                    // 根据SEMI E30标准，设备应该始终能够接受S1F13建立通信请求
+                    // 即使在EquipmentOffline状态，设备也应该启用SECS/GEM通信
+                    // 只有在以下情况下通信才是禁用的：
+                    // 1. 设备硬件故障（UnscheduledDown）
+                    // 2. 设备明确禁用了SECS/GEM功能（需要配置）
+                    
+                    // 检查设备状态
+                    var equipmentState = _equipmentStateMachine.State;
+                    
+                    // 如果设备处于严重故障状态，不允许通信
+                    if (equipmentState == EquipmentState.UnscheduledDown)
+                    {
+                        return false;
+                    }
+                    
+                    // 默认情况下，设备应该启用SECS/GEM通信
+                    // 这允许主机在任何时候发送S1F13来建立通信
+                    return true;
+                }
+                finally
+                {
+                    _stateLock.ExitReadLock();
+                }
+            });
+        }
+
+        /// <summary>
         /// 检查是否可以建立通信
         /// </summary>
         public async Task<bool> CanEstablishCommunicationAsync()
@@ -687,6 +723,47 @@ namespace DiceEquipmentSystem.Services
         /// 重置处理状态
         /// </summary>
         /// <returns>是否成功</returns>
+        /// <summary>
+        /// 完成处理状态初始化
+        /// 从Init状态转换到Idle状态
+        /// </summary>
+        /// <returns>是否成功</returns>
+        public async Task<bool> CompleteProcessInitializationAsync()
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var currentState = _processStateMachine.CurrentState;
+                    
+                    if (currentState == ProcessState.Init)
+                    {
+                        bool success = _processStateMachine.Fire(ProcessTrigger.InitComplete);
+                        if (success)
+                        {
+                            _logger.LogInformation("处理状态初始化完成，从Init转换到Idle");
+                            return true;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("无法触发InitComplete，处理状态转换失败");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug($"处理状态已经初始化，当前状态: {currentState}");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "完成处理状态初始化失败");
+                    return false;
+                }
+            });
+        }
+
         public async Task<bool> ResetProcessAsync()
         {
             return await Task.Run(() =>

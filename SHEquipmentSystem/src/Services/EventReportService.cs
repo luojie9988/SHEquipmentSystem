@@ -23,6 +23,7 @@ namespace DiceEquipmentSystem.Services
         private readonly ConcurrentDictionary<uint, bool> _eventEnabled;
         private readonly Queue<CachedEventReport> _cachedReports;
         private readonly object _cacheLock = new();
+        private readonly ConcurrentDictionary<uint, EventDefinition> _eventDefinitions;
 
         public EventReportService(ILogger<EventReportService> logger)
         {
@@ -31,11 +32,61 @@ namespace DiceEquipmentSystem.Services
             _eventLinkages = new ConcurrentDictionary<uint, List<uint>>();
             _eventEnabled = new ConcurrentDictionary<uint, bool>();
             _cachedReports = new Queue<CachedEventReport>();
+            _eventDefinitions = new ConcurrentDictionary<uint, EventDefinition>();
         }
 
         /// <summary>
         /// 定义事件报告
         /// </summary>
+        /// <summary>
+        /// 获取已定义的事件数量
+        /// </summary>
+        public int GetDefinedEventCount()
+        {
+            return _eventDefinitions.Count;
+        }
+        
+        /// <summary>
+        /// 获取已启用的事件数量
+        /// </summary>
+        public int GetEnabledEventCount()
+        {
+            return _eventDefinitions.Count(kvp => kvp.Value.IsEnabled);
+        }
+        
+        /// <summary>
+        /// 初始化默认事件
+        /// </summary>
+        public async Task InitializeDefaultEventsAsync()
+        {
+            _logger.LogDebug("初始化默认事件定义");
+            
+            // 默认事件定义
+            var defaultEvents = new Dictionary<uint, (string name, bool enabled)>
+            {
+                { 100, ("ProcessStateChange", true) },
+                { 101, ("EquipmentStateChange", true) },
+                { 200, ("ProcessProgramStart", true) },
+                { 201, ("ProcessProgramEnd", true) },
+                { 300, ("AlarmSet", true) },
+                { 301, ("AlarmClear", true) },
+                { 302, ("MaterialReceived", true) },
+                { 303, ("MaterialRemoved", true) }
+            };
+            
+            foreach (var evt in defaultEvents)
+            {
+                _eventDefinitions[evt.Key] = new EventDefinition
+                {
+                    EventId = evt.Key,
+                    EventName = evt.Value.name,
+                    IsEnabled = evt.Value.enabled
+                };
+            }
+            
+            await Task.CompletedTask;
+        }
+
         public Task<bool> DefineReportAsync(ReportDefinition reportDef)
         {
             try
@@ -172,6 +223,65 @@ namespace DiceEquipmentSystem.Services
         }
 
         /// <summary>
+        /// 触发事件
+        /// </summary>
+        public async Task TriggerEventAsync(uint ceid, string? eventName = null)
+        {
+            _logger.LogDebug($"触发事件 {ceid} ({eventName ?? "未命名"})");
+            
+            // 检查事件是否启用
+            if (!_eventEnabled.TryGetValue(ceid, out var enabled) || !enabled)
+            {
+                _logger.LogDebug($"事件 {ceid} 未启用，跳过");
+                return;
+            }
+
+            // 获取链接的报告
+            if (_eventLinkages.TryGetValue(ceid, out var reportIds))
+            {
+                _logger.LogDebug($"事件 {ceid} 链接到报告: [{string.Join(",", reportIds)}]");
+            }
+
+            // 触发事件报告
+            await ReportEventAsync(ceid, eventName ?? $"Event_{ceid}", null);
+        }
+
+        /// <summary>
+        /// 发送事件报告（异步队列处理）
+        /// </summary>
+        public async Task SendEventReportAsync(
+            uint ceid,
+            string eventName,
+            Dictionary<uint, object>? additionalData = null,
+            System.Threading.CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug($"发送事件报告 {ceid} ({eventName})");
+
+            // 检查事件是否启用
+            if (!_eventEnabled.TryGetValue(ceid, out var enabled) || !enabled)
+            {
+                _logger.LogDebug($"事件 {ceid} 未启用，跳过发送");
+                return;
+            }
+
+            // 异步发送事件报告
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    await ReportEventAsync(ceid, eventName, additionalData);
+                    await OnEventReportSentAsync(ceid);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"发送事件报告 {ceid} 失败");
+                    // 失败时缓存
+                    await CacheEventReportAsync(ceid, eventName, additionalData);
+                }
+            }, cancellationToken);
+        }
+
+        /// <summary>
         /// 缓存的事件报告
         /// </summary>
         private class CachedEventReport
@@ -181,5 +291,15 @@ namespace DiceEquipmentSystem.Services
             public Dictionary<uint, object> AdditionalData { get; set; } = new();
             public DateTime Timestamp { get; set; }
         }
+    }
+
+    /// <summary>
+    /// 事件定义
+    /// </summary>
+    internal class EventDefinition
+    {
+        public uint EventId { get; set; }
+        public string EventName { get; set; } = "";
+        public bool IsEnabled { get; set; } = true;
     }
 }

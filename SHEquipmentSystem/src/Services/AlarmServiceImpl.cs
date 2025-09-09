@@ -80,6 +80,20 @@ namespace DiceEquipmentSystem.Services
 
         #endregion
 
+        #region 事件
+
+        /// <summary>
+        /// 报警发生事件
+        /// </summary>
+        public event EventHandler<Interfaces.AlarmEventArgs>? AlarmOccurred;
+
+        /// <summary>
+        /// 报警清除事件
+        /// </summary>
+        public event EventHandler<Interfaces.AlarmEventArgs>? AlarmCleared;
+
+        #endregion
+
         #region 构造函数
 
         /// <summary>
@@ -167,6 +181,34 @@ namespace DiceEquipmentSystem.Services
         /// </summary>
         /// <param name="alid">报警ID</param>
         /// <param name="alarmText">报警文本</param>
+        /// <summary>
+        /// 获取已定义的报警数量
+        /// </summary>
+        public int GetDefinedAlarmCount()
+        {
+            return _alarmDefinitions.Count;
+        }
+        
+        /// <summary>
+        /// 获取活动报警数量
+        /// </summary>
+        public int GetActiveAlarmCount()
+        {
+            return _activeAlarms.Count;
+        }
+        
+        /// <summary>
+        /// 初始化默认报警
+        /// </summary>
+        public async Task InitializeDefaultAlarmsAsync()
+        {
+            _logger.LogDebug("初始化默认报警定义");
+            
+            // 默认报警已在InitializeAsync方法中初始化
+            // 这里可以添加额外的初始化逻辑
+            await Task.CompletedTask;
+        }
+
         public async Task SetAlarmAsync(uint alid, string alarmText)
         {
             try
@@ -811,20 +853,39 @@ namespace DiceEquipmentSystem.Services
         /// </summary>
         private async Task TriggerAlarmEvent(uint alarmId, AlarmEventType eventType)
         {
-            if (_eventBus == null)
-            {
-                return;
-            }
+            // 获取报警文本
+            var alarmText = GetAlarmText(alarmId);
 
-            var alarmEvent = new AlarmEvent
+            // 触发新的事件（用于接口兼容）
+            var eventArgs = new Interfaces.AlarmEventArgs
             {
                 AlarmId = alarmId,
-                EventType = eventType,
-                AlarmText = GetAlarmText(alarmId),
-                Category = GetAlarmCategory(alarmId)
+                AlarmText = alarmText,
+                Timestamp = DateTime.Now
             };
 
-            await _eventBus.PublishAsync(alarmEvent);
+            if (eventType == AlarmEventType.Set)
+            {
+                AlarmOccurred?.Invoke(this, eventArgs);
+            }
+            else if (eventType == AlarmEventType.Clear)
+            {
+                AlarmCleared?.Invoke(this, eventArgs);
+            }
+
+            // 原有的EventBus发布逻辑
+            if (_eventBus != null)
+            {
+                var alarmEvent = new AlarmEvent
+                {
+                    AlarmId = alarmId,
+                    EventType = eventType,
+                    AlarmText = alarmText,
+                    Category = GetAlarmCategory(alarmId)
+                };
+
+                await _eventBus.PublishAsync(alarmEvent);
+            }
         }
 
         /// <summary>

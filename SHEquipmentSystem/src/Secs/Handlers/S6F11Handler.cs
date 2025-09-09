@@ -48,122 +48,10 @@ namespace DiceEquipmentSystem.Secs.Handlers
     /// </remarks>
     public class S6F11Handler : SecsMessageHandlerBase, IS6F11Handler
     {
-        #region 划裂片设备事件定义
+        #region 使用统一的事件定义
 
-        /// <summary>
-        /// 划裂片设备支持的事件ID定义
-        /// </summary>
-        public static class DicerEvents
-        {
-            #region 控制状态事件 (200-209)
-
-            /// <summary>控制状态 - 离线</summary>
-            public const uint ControlStateOffline = 200;
-            /// <summary>控制状态 - 本地</summary>
-            public const uint ControlStateLocal = 201;
-            /// <summary>控制状态 - 远程</summary>
-            public const uint ControlStateRemote = 202;
-
-            #endregion
-
-            #region 处理状态事件 (210-219)
-
-            /// <summary>处理开始</summary>
-            public const uint ProcessStart = 210;
-            /// <summary>处理完成</summary>
-            public const uint ProcessComplete = 211;
-            /// <summary>处理中止</summary>
-            public const uint ProcessAbort = 212;
-            /// <summary>处理暂停</summary>
-            public const uint ProcessPause = 213;
-            /// <summary>处理恢复</summary>
-            public const uint ProcessResume = 214;
-
-            #endregion
-
-            #region 操作员动作事件 (220-229)
-
-            /// <summary>操作员设备常量改变</summary>
-            public const uint OperatorEquipmentConstantChange = 220;
-            /// <summary>操作员命令执行</summary>
-            public const uint OperatorCommandExecuted = 221;
-
-            #endregion
-
-            #region 报警事件 (230-239)
-
-            /// <summary>报警设置</summary>
-            public const uint AlarmSet = 230;
-            /// <summary>报警清除</summary>
-            public const uint AlarmClear = 231;
-
-            #endregion
-
-            #region 通信事件 (240-249)
-
-            /// <summary>消息识别</summary>
-            public const uint MessageRecognition = 240;
-            /// <summary>通信建立</summary>
-            public const uint CommunicationEstablished = 241;
-            /// <summary>通信失败</summary>
-            public const uint CommunicationFailed = 242;
-
-            #endregion
-
-            #region 材料处理事件 (11000-11099)
-
-            /// <summary>材料到达</summary>
-            public const uint MaterialArrival = 11000;
-            /// <summary>材料移除</summary>
-            public const uint MaterialRemoved = 11001;
-            /// <summary>映射完成</summary>
-            public const uint MapComplete = 11002;
-            /// <summary>配方选择</summary>
-            public const uint PPSelected = 11003;
-            /// <summary>处理开始</summary>
-            public const uint MaterialProcessStart = 11004;
-            /// <summary>处理结束</summary>
-            public const uint MaterialProcessEnd = 11005;
-            /// <summary>槽位跳过</summary>
-            public const uint SlotSkipped = 11010;
-            /// <summary>槽位映射结束</summary>
-            public const uint SlotMapEnd = 11011;
-            /// <summary>Frame开始</summary>
-            public const uint FrameStart = 11012;
-            /// <summary>Frame结束</summary>
-            public const uint FrameEnd = 11013;
-            /// <summary>Cassette开始</summary>
-            public const uint CassetteStart = 11014;
-            /// <summary>Cassette结束</summary>
-            public const uint CassetteEnd = 11015;
-
-            #endregion
-
-            #region 划裂片特定事件 (11100-11199)
-
-            /// <summary>刀具更换</summary>
-            public const uint KnifeChange = 11100;
-            /// <summary>刀具寿命警告</summary>
-            public const uint KnifeLifeWarning = 11101;
-            /// <summary>刀具寿命到期</summary>
-            public const uint KnifeLifeExpired = 11102;
-            /// <summary>校准开始</summary>
-            public const uint CalibrationStart = 11110;
-            /// <summary>校准完成</summary>
-            public const uint CalibrationComplete = 11111;
-            /// <summary>维护提醒</summary>
-            public const uint MaintenanceReminder = 11120;
-            /// <summary>维护完成</summary>
-            public const uint MaintenanceComplete = 11121;
-            /// <summary>切割参数改变</summary>
-            public const uint CuttingParameterChanged = 11130;
-            /// <summary>冷却系统异常</summary>
-            public const uint CoolingSystemAbnormal = 11140;
-            /// <summary>真空系统异常</summary>
-            public const uint VacuumSystemAbnormal = 11141;
-
-            #endregion
-        }
+        // 使用SemiIdDefinitions.Ceid中定义的标准事件ID
+        // 参考: src/Common/SemiStandardDefinitions.cs
 
         #endregion
 
@@ -693,13 +581,16 @@ namespace DiceEquipmentSystem.Secs.Handlers
         {
             return ceid switch
             {
-                DicerEvents.AlarmSet => true,
-                DicerEvents.AlarmClear => true,
-                DicerEvents.ProcessAbort => true,
-                DicerEvents.CommunicationFailed => true,
-                DicerEvents.KnifeLifeExpired => true,
-                DicerEvents.CoolingSystemAbnormal => true,
-                DicerEvents.VacuumSystemAbnormal => true,
+                // 控制状态变化事件总是高优先级
+                200 => true,  // ControlStateOFFLINE
+                201 => true,  // ControlStateLOCAL  
+                202 => true,  // ControlStateREMOTE
+                // 工艺关键事件
+                11004 => true, // ProcessStart
+                11005 => true, // ProcessEnd
+                // 刀具相关事件
+                11015 => true, // KnifeUnload
+                11017 => true, // KnifeInstall
                 _ => false
             };
         }

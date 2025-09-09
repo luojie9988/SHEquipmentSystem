@@ -2,6 +2,9 @@
 // 版本: v1.0.0
 // 描述: 设备配置模型
 
+using System;
+using System.Collections.Generic;
+
 namespace DiceEquipmentSystem.Core.Configuration
 {
     /// <summary>
@@ -139,6 +142,33 @@ namespace DiceEquipmentSystem.Core.Configuration
         /// 默认控制状态
         /// </summary>
         public string DefaultControlState { get; set; } = "OnlineRemote";
+
+        /// <summary>
+        /// 建立通信超时时间（秒）- ECID 250
+        /// 默认值: 5秒, 范围: 1-120秒
+        /// </summary>
+        public int EstablishCommunicationsTimeout { get; set; } = 5;
+
+        /// <summary>
+        /// 允许的主机列表（用于验证主机连接）
+        /// 空列表表示允许所有主机
+        /// </summary>
+        public List<string> AllowedHosts { get; set; } = new();
+
+        /// <summary>
+        /// 验证主机信息
+        /// </summary>
+        /// <param name="hostInfo">主机信息</param>
+        /// <returns>是否验证通过</returns>
+        public bool ValidateHostInfo(string hostInfo)
+        {
+            // 如果允许列表为空，接受所有主机
+            if (AllowedHosts == null || AllowedHosts.Count == 0)
+                return true;
+
+            // 检查主机是否在允许列表中
+            return AllowedHosts.Contains(hostInfo, StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     /// <summary>
@@ -146,6 +176,10 @@ namespace DiceEquipmentSystem.Core.Configuration
     /// </summary>
     public class PlcConfiguration
     {
+        /// <summary>
+        /// 设备ID
+        /// </summary>
+        public ushort DeviceId { get; set; } = 1;
         /// <summary>
         /// PLC IP地址
         /// </summary>
@@ -180,10 +214,6 @@ namespace DiceEquipmentSystem.Core.Configuration
         /// 是否启用PLC通信
         /// </summary>
         public bool Enabled { get; set; } = false;
-        //    /// <summary>接收超时(毫秒)</summary>
-           public int ReceiveTimeout { get; set; } = 3000;
-        //    /// <summary>最大重试次数</summary>
-            public int MaxRetryCount { get; set; } = 3;
     }
 
     /// <summary>

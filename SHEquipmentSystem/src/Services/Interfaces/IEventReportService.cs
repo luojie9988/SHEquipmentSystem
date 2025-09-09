@@ -14,6 +14,7 @@ namespace DiceEquipmentSystem.Services.Interfaces
     /// </summary>
     public interface IEventReportService
     {
+
         /// <summary>
         /// 定义事件报告
         /// </summary>
@@ -97,6 +98,47 @@ namespace DiceEquipmentSystem.Services.Interfaces
         /// <param name="additionalData">附加数据</param>
         /// <returns>异步任务</returns>
         Task CacheEventReportAsync(uint ceid, string eventName, Dictionary<uint, object>? additionalData);
+
+        /// <summary>
+        /// 触发事件
+        /// </summary>
+        /// <param name="ceid">事件ID</param>
+        /// <param name="eventName">事件名称（可选）</param>
+        /// <returns>异步任务</returns>
+        Task TriggerEventAsync(uint ceid, string? eventName = null);
+
+        /// <summary>
+        /// 发送事件报告
+        /// 与ReportEventAsync的区别是此方法会添加到事件队列并异步处理
+        /// </summary>
+        /// <param name="ceid">事件ID</param>
+        /// <param name="eventName">事件名称</param>
+        /// <param name="additionalData">附加数据</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>异步任务</returns>
+        Task SendEventReportAsync(
+            uint ceid,
+            string eventName,
+            Dictionary<uint, object>? additionalData = null,
+            System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 获取已定义的事件数量
+        /// </summary>
+        /// <returns>事件数量</returns>
+        int GetDefinedEventCount();
+
+        /// <summary>
+        /// 获取已启用的事件数量
+        /// </summary>
+        /// <returns>启用的事件数量</returns>
+        int GetEnabledEventCount();
+
+        /// <summary>
+        /// 初始化默认事件
+        /// </summary>
+        /// <returns>异步任务</returns>
+        Task InitializeDefaultEventsAsync();
     }
 
     /// <summary>

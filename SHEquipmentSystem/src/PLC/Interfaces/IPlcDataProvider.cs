@@ -57,6 +57,71 @@ namespace DiceEquipmentSystem.PLC.Interfaces
         /// <returns>写入是否成功</returns>
         Task<bool> WriteEcidAsync(uint ecid, string address, object value, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// 读取Int16值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<short> ReadInt16Async(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取Int32值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<int> ReadInt32Async(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取Float值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<float> ReadFloatAsync(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取String值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="length">字符串长度</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<string> ReadStringAsync(string address, int length = 32, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取Byte值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<byte> ReadByteAsync(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取UInt16值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<ushort> ReadUInt16Async(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取UInt32值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<uint> ReadUInt32Async(string address, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 读取Bool值
+        /// </summary>
+        /// <param name="address">PLC地址</param>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>读取的值</returns>
+        Task<bool> ReadBoolAsync(string address, CancellationToken cancellationToken = default);
+
         #endregion
 
         #region 命令执行

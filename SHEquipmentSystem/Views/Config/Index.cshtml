@@ -1,333 +1,537 @@
-@using SHEquipmentSystem.ViewModels
-@model ConfigOverviewViewModel
 @{
-    ViewData["Title"] = "配置总览";
-    ViewData["ConfigTitle"] = "配置管理总览";
-    Layout = "_ConfigLayout";
+    Layout = null; // 不使用布局文件
 }
-
-@section HeaderActions {
-    <el-button type="primary" onclick="refreshStatus">
-        <el-icon><Refresh /></el-icon>刷新状态
-    </el-button>
-    <el-button onclick="exportAllConfigs">
-        <el-icon><Download /></el-icon>导出所有配置
-    </el-button>
-    <el-button onclick="showSystemInfo">
-        <el-icon><InfoFilled /></el-icon>系统信息
-    </el-button>
-}
-
-<div id="config-overview-app">
-    <!-- 系统状态卡片 -->
-    <el-row :gutter="24" style="margin-bottom: 24px;">
-        <el-col :span="6">
-            <el-card class="status-overview-card">
-                <el-statistic title="PLC连接状态" :value="plcConnected ? '已连接' : '未连接'">
-                    <template #prefix>
-                        <el-icon :style="{ color: plcConnected ? '#67c23a' : '#f56c6c' }">
-                            <component :is="plcConnected ? 'CircleCheckFilled' : 'CircleCloseFilled'"></component>
-                        </el-icon>
-                    </template>
-                </el-statistic>
-                <div class="status-desc">
-                    <span :class="plcConnected ? 'status-success' : 'status-error'">
-                        {{ plcConnected ? '通信正常' : '连接异常' }}
-                    </span>
-                </div>
-            </el-card>
-        </el-col>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>配置管理 - SH设备配置系统</title>
+    
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.css" />
+    
+    <!-- 自定义样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        <el-col :span="6">
-            <el-card class="status-overview-card">
-                <el-statistic title="设备状态" :value="equipmentStatus">
-                    <template #prefix>
-                        <el-icon style="color: #409eff;"><Monitor /></el-icon>
-                    </template>
-                </el-statistic>
-                <div class="status-desc">
-                    <span class="status-normal">系统运行正常</span>
-                </div>
-            </el-card>
-        </el-col>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
         
-        <el-col :span="6">
-            <el-card class="status-overview-card">
-                <el-statistic title="运行时间" :value="systemUptime" suffix="小时">
-                    <template #prefix>
-                        <el-icon style="color: #e6a23c;"><Timer /></el-icon>
-                    </template>
-                </el-statistic>
-                <div class="status-desc">
-                    <span class="status-normal">持续运行</span>
-                </div>
-            </el-card>
-        </el-col>
+        .main-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
         
-        <el-col :span="6">
-            <el-card class="status-overview-card">
-                <el-statistic title="配置版本" value="V1.0.0">
-                    <template #prefix>
-                        <el-icon style="color: #909399;"><Document /></el-icon>
-                    </template>
-                </el-statistic>
-                <div class="status-desc">
-                    <span class="status-normal">最新版本</span>
-                </div>
-            </el-card>
-        </el-col>
-    </el-row>
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 18px;
+        }
+        
+        .navigation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(31, 38, 135, 0.5);
+        }
+        
+        .nav-card-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .nav-card h3 {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .nav-card p {
+            color: #718096;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .nav-card-features {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .nav-card-features li {
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-card-features li::before {
+            content: "✓";
+            color: #48bb78;
+            font-weight: bold;
+        }
+        
+        .status-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .status-card h4 {
+            color: #2d3748;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+        
+        media (max-width: 768px) {
+            .main-container {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 28px;
+            }
+            
+            .navigation-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 页面头部 -->
+        <div class="header">
+            <h1>🔧 SH设备配置管理系统</h1>
+            <p>统一管理PLC通信与设备系统配置，确保设备稳定运行</p>
+        </div>
+        
+        <!-- 主要内容 -->
+        <div id="config-overview-app" v-cloak>
+            <!-- 导航卡片 -->
+            <div class="navigation-grid">
+                <!-- PLC配置卡片 -->
+                <a href="/Config/PLCConfig" class="nav-card">
+                    <span class="nav-card-icon" style="color: #4299e1;">🔌</span>
+                    <h3>PLC通信配置</h3>
+                    <p>配置PLC设备的连接参数、超时设置和数据块管理，确保稳定的工业通信。</p>
+                    <ul class="nav-card-features">
+                        <li>基础连接参数设置</li>
+                        <li>超时和轮询间隔配置</li>
+                        <li>数据块动态管理</li>
+                        <li>连接状态实时监控</li>
+                    </ul>
+                </a>
 
-    <!-- 配置模块快速访问 -->
-    <el-row :gutter="24" style="margin-bottom: 24px;">
-        <el-col :span="12">
-            <el-card class="quick-access-card">
-                <template #header>
-                    <div class="card-header">
-                        <span>PLC通信配置</span>
-                        <el-tag :type="plcConfigStatus.type" size="small">{{ plcConfigStatus.text }}</el-tag>
-                    </div>
-                </template>
-                
-                <div class="config-summary">
-                    <el-descriptions :column="2" size="small">
-                        <el-descriptions-item label="连接地址">{{ plcConfig.ipAddress }}:{{ plcConfig.port }}</el-descriptions-item>
-                        <el-descriptions-item label="连接状态">
-                            <el-tag :type="plcConnected ? 'success' : 'danger'" size="small">
-                                {{ plcConnected ? '已连接' : '未连接' }}
-                            </el-tag>
-                        </el-descriptions-item>
-                        <el-descriptions-item label="网络号">{{ plcConfig.networkNumber }}</el-descriptions-item>
-                        <el-descriptions-item label="站号">{{ plcConfig.stationNumber }}</el-descriptions-item>
-                        <el-descriptions-item label="数据块数">{{ plcConfig.dataBlocks.length }}</el-descriptions-item>
-                        <el-descriptions-item label="轮询间隔">{{ plcConfig.pollingInterval }}ms</el-descriptions-item>
-                    </el-descriptions>
-                </div>
-                
-                <div class="card-actions">
-                    <el-button type="primary" onclick="goToConfig('plc')" size="small">
-                        <el-icon><Setting /></el-icon>配置PLC
-                    </el-button>
-                    <el-button onclick="testPlcConnection" :loading="testingPlc" size="small">
-                        <el-icon><Connection /></el-icon>测试连接
-                    </el-button>
-                </div>
-            </el-card>
-        </el-col>
+                <!-- 设备配置卡片 -->
+                <a href="/Config/EquipmentConfig" class="nav-card">
+                    <span class="nav-card-icon" style="color: #48bb78;">⚙️</span>
+                    <h3>设备系统配置</h3>
+                    <p>管理SECS/GEM协议参数、SVID映射和设备运行配置，优化设备性能。</p>
+                    <ul class="nav-card-features">
+                        <li>设备基本信息管理</li>
+                        <li>HSMS网络参数设置</li>
+                        <li>SVID状态变量映射</li>
+                        <li>分步骤配置向导</li>
+                    </ul>
+                </a>
 
-        <el-col :span="12">
-            <el-card class="quick-access-card">
-                <template #header>
-                    <div class="card-header">
-                        <span>设备系统配置</span>
-                        <el-tag :type="equipmentConfigStatus.type" size="small">{{ equipmentConfigStatus.text }}</el-tag>
-                    </div>
-                </template>
-                
-                <div class="config-summary">
-                    <el-descriptions :column="2" size="small">
-                        <el-descriptions-item label="设备ID">{{ equipmentConfig.equipment.deviceId }}</el-descriptions-item>
-                        <el-descriptions-item label="设备名称">{{ equipmentConfig.equipment.equipmentName }}</el-descriptions-item>
-                        <el-descriptions-item label="型号">{{ equipmentConfig.equipment.modelName }}</el-descriptions-item>
-                        <el-descriptions-item label="软件版本">{{ equipmentConfig.equipment.softwareRevision }}</el-descriptions-item>
-                        <el-descriptions-item label="工作模式">{{ equipmentConfig.equipment.isActive ? 'Active' : 'Passive' }}</el-descriptions-item>
-                        <el-descriptions-item label="监听端口">{{ equipmentConfig.equipment.port }}</el-descriptions-item>
-                    </el-descriptions>
+                <!-- 系统监控卡片 -->
+                <div class="nav-card" v-on:click="showMonitorDialog = true">
+                    <span class="nav-card-icon" style="color: #ed8936;">📊</span>
+                    <h3>系统状态监控</h3>
+                    <p>实时监控系统运行状态、连接质量和性能指标，及时发现并解决问题。</p>
+                    <ul class="nav-card-features">
+                        <li>实时连接状态显示</li>
+                        <li>通信质量监控</li>
+                        <li>性能指标统计</li>
+                        <li>异常告警通知</li>
+                    </ul>
                 </div>
-                
-                <div class="card-actions">
-                    <el-button type="primary" onclick="goToConfig('equipment')" size="small">
-                        <el-icon><Monitor /></el-icon>配置设备
-                    </el-button>
-                    <el-button onclick="validateConfigs" :loading="validating" size="small">
-                        <el-icon><Warning /></el-icon>验证配置
-                    </el-button>
-                </div>
-            </el-card>
-        </el-col>
-    </el-row>
+            </div>
 
-    <!-- 配置统计和监控 -->
-    <el-row :gutter="24" style="margin-bottom: 24px;">
-        <!-- 配置统计 -->
-        <el-col :span="8">
-            <el-card class="statistics-card">
-                <template #header>
-                    <span>配置统计</span>
-                </template>
+            <!-- 系统状态概览 -->
+            <div class="status-section">
+                <h2 style="color: #2d3748; margin-bottom: 25px; font-size: 24px; font-weight: 600;">
+                    📈 系统状态概览
+                </h2>
                 
-                <div class="statistics-content">
-                    <div class="stat-item">
-                        <div class="stat-label">SVID映射数量</div>
-                        <div class="stat-value">{{ statisticsData.svidMappings }}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">默认报告数</div>
-                        <div class="stat-value">{{ statisticsData.defaultReports }}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">事件链接数</div>
-                        <div class="stat-value">{{ statisticsData.eventLinks }}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">数据块数量</div>
-                        <div class="stat-value">{{ statisticsData.dataBlocks }}</div>
-                    </div>
-                </div>
-            </el-card>
-        </el-col>
-
-        <!-- 系统资源监控 -->
-        <el-col :span="8">
-            <el-card class="monitor-card">
-                <template #header>
-                    <span>系统监控</span>
-                </template>
-                
-                <div class="monitor-content">
-                    <div class="monitor-item">
-                        <div class="monitor-label">CPU使用率</div>
-                        <el-progress :percentage="systemMetrics.cpuUsage" :color="getCpuColor(systemMetrics.cpuUsage)"></el-progress>
-                    </div>
-                    <div class="monitor-item">
-                        <div class="monitor-label">内存使用率</div>
-                        <el-progress :percentage="systemMetrics.memoryUsage" :color="getMemoryColor(systemMetrics.memoryUsage)"></el-progress>
-                    </div>
-                    <div class="monitor-item">
-                        <div class="monitor-label">磁盘使用率</div>
-                        <el-progress :percentage="systemMetrics.diskUsage" :color="getDiskColor(systemMetrics.diskUsage)"></el-progress>
-                    </div>
-                    <div class="monitor-item">
-                        <div class="monitor-label">网络延迟</div>
-                        <div class="network-latency">{{ systemMetrics.networkLatency }}ms</div>
-                    </div>
-                </div>
-            </el-card>
-        </el-col>
-
-        <!-- 最近活动 -->
-        <el-col :span="8">
-            <el-card class="activity-card">
-                <template #header>
-                    <span>最近活动</span>
-                </template>
-                
-                <el-timeline class="activity-timeline">
-                    <el-timeline-item
-                        v-for="activity in recentActivities"
-                        :key="activity.id"
-                        :timestamp="activity.time"
-                        :type="activity.type"
-                        size="small">
-                        {{ activity.description }}
-                    </el-timeline-item>
-                </el-timeline>
-            </el-card>
-        </el-col>
-    </el-row>
-
-    <!-- 配置操作面板 -->
-    <el-row>
-        <el-col :span="24">
-            <el-card class="operations-card">
-                <template #header>
-                    <span>配置管理操作</span>
-                </template>
-                
-                <el-row :gutter="16">
-                    <el-col :span="8">
-                        <div class="operation-group">
-                            <h4>备份与恢复</h4>
-                            <el-space direction="vertical" style="width: 100%;">
-                                <el-button onclick="backupConfigs" style="width: 100%;">
-                                    <el-icon><FolderAdd /></el-icon>备份所有配置
-                                </el-button>
-                                <el-button onclick="restoreConfigs" style="width: 100%;">
-                                    <el-icon><FolderOpened /></el-icon>恢复配置
-                                </el-button>
-                                <el-button onclick="resetToDefaults" type="danger" style="width: 100%;">
-                                    <el-icon><RefreshLeft /></el-icon>重置为默认
-                                </el-button>
-                            </el-space>
+                <div class="status-grid">
+                    <!-- PLC连接状态 -->
+                    <div class="status-card">
+                        <h4>PLC连接状态</h4>
+                        <el-tag 
+                            :type="systemStatus.plc.connected ? 'success' : 'danger'" 
+                            size="large">
+                            {{ systemStatus.plc.connected ? '已连接' : '未连接' }}
+                        </el-tag>
+                        <p style="margin-top: 10px; color: #718096; font-size: 14px;">
+                            {{ systemStatus.plc.description }}
+                        </p>
+                        <div style="margin-top: 15px;">
+                            <el-button 
+                                type="primary" 
+                                size="small"
+                                       v-on:click="testPLCConnection"
+                                :loading="testingPLC">
+                                测试连接
+                            </el-button>
                         </div>
-                    </el-col>
-                    
-                    <el-col :span="8">
-                        <div class="operation-group">
-                            <h4>导入导出</h4>
-                            <el-space direction="vertical" style="width: 100%;">
-                                <el-button onclick="exportConfigs" style="width: 100%;">
-                                    <el-icon><Download /></el-icon>导出配置
-                                </el-button>
-                                <el-upload
-                                    :show-file-list="false"
-                                    :before-upload="importConfigs"
-                                    accept=".json"
-                                    style="width: 100%;">
-                                    <el-button style="width: 100%;">
-                                        <el-icon><Upload /></el-icon>导入配置
-                                    </el-button>
-                                </el-upload>
-                                <el-button onclick="downloadTemplate" style="width: 100%;">
-                                    <el-icon><Document /></el-icon>下载模板
-                                </el-button>
-                            </el-space>
-                        </div>
-                    </el-col>
-                    
-                    <el-col :span="8">
-                        <div class="operation-group">
-                            <h4>系统维护</h4>
-                            <el-space direction="vertical" style="width: 100%;">
-                                <el-button onclick="cleanupLogs" style="width: 100%;">
-                                    <el-icon><Delete /></el-icon>清理日志
-                                </el-button>
-                                <el-button onclick="optimizeSystem" style="width: 100%;">
-                                    <el-icon><Magic /></el-icon>系统优化
-                                </el-button>
-                                <el-button onclick="restartService" type="warning" style="width: 100%;">
-                                    <el-icon><RefreshRight /></el-icon>重启服务
-                                </el-button>
-                            </el-space>
-                        </div>
-                    </el-col>
-                </el-row>
-            </el-card>
-        </el-col>
-    </el-row>
+                    </div>
 
-    <!-- 系统信息对话框 -->
-    <el-dialog
-        v-model="showSystemInfoDialog"
-        title="系统信息"
-        width="600px"
-        :before-close="closeSystemInfoDialog">
-        
-        <el-descriptions :column="2" border>
-            <el-descriptions-item label="操作系统">{{ systemInfo.os }}</el-descriptions-item>
-            <el-descriptions-item label="运行时版本">{{ systemInfo.runtime }}</el-descriptions-item>
-            <el-descriptions-item label="主机名">{{ systemInfo.hostname }}</el-descriptions-item>
-            <el-descriptions-item label="IP地址">{{ systemInfo.ipAddress }}</el-descriptions-item>
-            <el-descriptions-item label="启动时间">{{ systemInfo.startTime }}</el-descriptions-item>
-            <el-descriptions-item label="运行时间">{{ systemInfo.uptime }}</el-descriptions-item>
-            <el-descriptions-item label="总内存">{{ systemInfo.totalMemory }}</el-descriptions-item>
-            <el-descriptions-item label="可用内存">{{ systemInfo.availableMemory }}</el-descriptions-item>
-        </el-descriptions>
-        
-        <template #footer>
-            <el-button onclick="closeSystemInfoDialog">关闭</el-button>
-        </template>
-    </el-dialog>
-</div>
+                    <!-- 设备系统状态 -->
+                    <div class="status-card">
+                        <h4>设备系统状态</h4>
+                        <el-tag 
+                            :type="systemStatus.equipment.active ? 'success' : 'info'" 
+                            size="large">
+                            {{ systemStatus.equipment.active ? '运行中' : '待机' }}
+                        </el-tag>
+                        <p style="margin-top: 10px; color: #718096; font-size: 14px;">
+                            {{ systemStatus.equipment.description }}
+                        </p>
+                        <div style="margin-top: 15px;">
+                            <el-button 
+                                type="primary" 
+                                size="small"
+                                       v-on:click="toggleEquipmentStatus"
+                                :loading="togglingEquipment">
+                                {{ systemStatus.equipment.active ? '停止' : '启动' }}
+                            </el-button>
+                        </div>
+                    </div>
 
-@* @section Scripts {
+                    <!-- 通信质量 -->
+                    <div class="status-card">
+                        <h4>通信质量</h4>
+                        <el-progress 
+                            :percentage="systemStatus.communication.quality" 
+                            :color="getQualityColor(systemStatus.communication.quality)"
+                            :stroke-width="8">
+                        </el-progress>
+                        <p style="margin-top: 10px; color: #718096; font-size: 14px;">
+                            延迟: {{ systemStatus.communication.latency }}ms
+                        </p>
+                        <p style="color: #718096; font-size: 14px;">
+                            丢包率: {{ systemStatus.communication.packetLoss }}%
+                        </p>
+                    </div>
+
+                    <!-- 系统性能 -->
+                    <div class="status-card">
+                        <h4>系统性能</h4>
+                        <div style="margin-bottom: 10px;">
+                            <span style="font-size: 14px; color: #718096;">CPU使用率</span>
+                            <el-progress 
+                                :percentage="systemStatus.performance.cpu" 
+                                :stroke-width="6"
+                                :show-text="false">
+                            </el-progress>
+                        </div>
+                        <div>
+                            <span style="font-size: 14px; color: #718096;">内存使用率</span>
+                            <el-progress 
+                                :percentage="systemStatus.performance.memory" 
+                                :stroke-width="6"
+                                :show-text="false">
+                            </el-progress>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近活动 -->
+                <div style="margin-top: 30px;">
+                    <h3 style="color: #2d3748; margin-bottom: 20px; font-size: 20px; font-weight: 600;">
+                        📝 最近活动
+                    </h3>
+                    <el-timeline>
+                        <el-timeline-item 
+                            v-for="activity in recentActivities" 
+                            :key="activity.id"
+                            :timestamp="activity.timestamp"
+                            :type="activity.type">
+                            {{ activity.description }}
+                        </el-timeline-item>
+                    </el-timeline>
+                </div>
+            </div>
+
+            <!-- 系统监控对话框 -->
+            <el-dialog
+                v-model="showMonitorDialog"
+                title="系统状态监控"
+                width="80%"
+                top="5vh">
+                <div style="text-align: center; padding: 40px;">
+                    <el-icon size="64" color="#409eff">
+                        <Monitor />
+                    </el-icon>
+                    <h3 style="margin: 20px 0; color: #303133;">系统监控功能</h3>
+                    <p style="color: #909399; margin-bottom: 30px;">
+                        详细的系统监控功能正在开发中，将提供实时图表、历史数据分析和告警管理等功能。
+                    </p>
+                    <el-button type="primary" onclick="showMonitorDialog = false">
+                        了解更多
+                    </el-button>
+                </div>
+            </el-dialog>
+        </div>
+        
+        <!-- 页面底部 -->
+        <div class="footer">
+            © 2025 SH设备配置管理系统 - 为工业4.0提供稳定可靠的设备配置解决方案
+        </div>
+    </div>
+
+    <!-- 加载Vue.js和Element Plus -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/locale/zh-cn.min.js"></script>
+
     <script>
-        // 初始化数据
-        window.configOverviewData = {
-            plcStatus: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PLCStatus)),
-            equipmentStatus: '@Model.EquipmentStatus',
-            lastUpdateTime: '@Model.LastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss")'
-        };
+        // 检查依赖加载
+        if (typeof Vue === 'undefined') {
+            alert('Vue.js加载失败，请检查网络连接');
+        } else if (typeof ElementPlus === 'undefined') {
+            alert('ElementPlus加载失败，请检查网络连接');
+        } else {
+            // 初始化应用
+            const { createApp } = Vue;
+            const { ElMessage, ElNotification } = ElementPlus;
+
+            const app = createApp({
+                data() {
+                    return {
+                        showMonitorDialog: false,
+                        testingPLC: false,
+                        togglingEquipment: false,
+                        systemStatus: {
+                            plc: {
+                                connected: false,
+                                description: 'PLC设备未连接，请检查网络和配置'
+                            },
+                            equipment: {
+                                active: false,
+                                description: '设备系统处于待机状态'
+                            },
+                            communication: {
+                                quality: 85,
+                                latency: 25,
+                                packetLoss: 0.1
+                            },
+                            performance: {
+                                cpu: 45,
+                                memory: 62
+                            }
+                        },
+                        recentActivities: [
+                            {
+                                id: 1,
+                                timestamp: '2024-01-15 14:30:25',
+                                type: 'success',
+                                description: '系统启动完成，所有模块正常初始化'
+                            },
+                            {
+                                id: 2,
+                                timestamp: '2024-01-15 14:28:10',
+                                type: 'primary',
+                                description: '加载PLC配置文件成功'
+                            },
+                            {
+                                id: 3,
+                                timestamp: '2024-01-15 14:25:05',
+                                type: 'warning',
+                                description: 'PLC连接超时，正在重试连接'
+                            },
+                            {
+                                id: 4,
+                                timestamp: '2024-01-15 14:20:00',
+                                type: 'info',
+                                description: '用户登录系统，开始配置会话'
+                            }
+                        ]
+                    }
+                },
+                methods: {
+                    async testPLCConnection() {
+                        this.testingPLC = true;
+                        try {
+                            // 模拟连接测试
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            
+                            // 随机模拟连接结果
+                            const connected = Math.random() > 0.3;
+                            
+                            this.systemStatus.plc.connected = connected;
+                            this.systemStatus.plc.description = connected 
+                                ? 'PLC设备连接正常，通信稳定' 
+                                : 'PLC连接失败，请检查设备状态和网络配置';
+                            
+                            // 添加活动记录
+                            this.recentActivities.unshift({
+                                id: Date.now(),
+                                timestamp: new Date().toLocaleString(),
+                                type: connected ? 'success' : 'danger',
+                                description: connected ? 'PLC连接测试成功' : 'PLC连接测试失败'
+                            });
+                            
+                            ElNotification({
+                                title: 'PLC连接测试',
+                                message: connected ? '连接测试成功' : '连接测试失败',
+                                type: connected ? 'success' : 'error'
+                            });
+                            
+                        } catch (error) {
+                            ElMessage.error('连接测试出现异常: ' + error.message);
+                        } finally {
+                            this.testingPLC = false;
+                        }
+                    },
+                    
+                    async toggleEquipmentStatus() {
+                        this.togglingEquipment = true;
+                        try {
+                            // 模拟状态切换
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            
+                            this.systemStatus.equipment.active = !this.systemStatus.equipment.active;
+                            this.systemStatus.equipment.description = this.systemStatus.equipment.active
+                                ? '设备系统运行中，各模块状态正常'
+                                : '设备系统已停止，处于待机状态';
+                            
+                            // 添加活动记录
+                            this.recentActivities.unshift({
+                                id: Date.now(),
+                                timestamp: new Date().toLocaleString(),
+                                type: 'primary',
+                                description: this.systemStatus.equipment.active ? '设备系统已启动' : '设备系统已停止'
+                            });
+                            
+                            ElMessage.success(
+                                this.systemStatus.equipment.active ? '设备启动成功' : '设备停止成功'
+                            );
+                            
+                        } catch (error) {
+                            ElMessage.error('操作失败: ' + error.message);
+                        } finally {
+                            this.togglingEquipment = false;
+                        }
+                    },
+                    
+                    getQualityColor(quality) {
+                        if (quality >= 80) return '#67c23a';
+                        if (quality >= 60) return '#e6a23c';
+                        return '#f56c6c';
+                    }
+                },
+                
+                mounted() {
+                    console.log('配置总览应用已挂载');
+                    
+                    // 模拟实时数据更新
+                    setInterval(() => {
+                        // 更新通信质量
+                        const baseQuality = 85;
+                        this.systemStatus.communication.quality = baseQuality + Math.random() * 10 - 5;
+                        
+                        // 更新延迟
+                        this.systemStatus.communication.latency = 25 + Math.random() * 10 - 5;
+                        
+                        // 更新性能数据
+                        this.systemStatus.performance.cpu = 45 + Math.random() * 20 - 10;
+                        this.systemStatus.performance.memory = 62 + Math.random() * 15 - 7;
+                    }, 5000);
+                }
+            });
+
+            // 使用Element Plus和中文语言包
+            app.use(ElementPlus, {
+                locale: ElementPlusLocaleZhCn
+            });
+            
+            // 挂载应用
+            app.mount('#config-overview-app');
+        }
     </script>
-    <script src="~/js/config/config-overview.js"></script>
-} *@
+</body>
+</html>

@@ -54,5 +54,11 @@ namespace DiceEquipmentSystem.Services.Interfaces
         /// <param name="defaultValue">默认值</param>
         /// <returns>变量值</returns>
         Task<object> GetStatusVariableAsync(uint vid, object? defaultValue = null);
+
+        /// <summary>
+        /// 获取已定义的SVID数量
+        /// </summary>
+        /// <returns>SVID数量</returns>
+        int GetDefinedSvidCount();
     }
 }

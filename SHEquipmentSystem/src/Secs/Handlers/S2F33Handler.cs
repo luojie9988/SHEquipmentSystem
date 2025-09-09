@@ -118,6 +118,12 @@ namespace DiceEquipmentSystem.Secs.Handlers
         private readonly IStatusVariableService _svidService;
 
         /// <summary>
+        /// 设备状态服务
+        /// 用于检查通信和控制状态（SEMI E30合规性）
+        /// </summary>
+        private readonly IEquipmentStateService _equipmentStateService;
+
+        /// <summary>
         /// 设备配置
         /// 包含事件报告的限制参数和性能配置
         /// </summary>
@@ -169,16 +175,19 @@ namespace DiceEquipmentSystem.Secs.Handlers
         /// <param name="logger">日志记录器，用于记录报告配置过程</param>
         /// <param name="eventReportService">事件报告服务，提供报告管理功能</param>
         /// <param name="svidService">状态变量服务，用于验证VID有效性</param>
+        /// <param name="equipmentStateService">设备状态服务，用于检查通信和控制状态</param>
         /// <param name="options">设备系统配置</param>
         /// <exception cref="ArgumentNullException">当必需的依赖服务为null时抛出</exception>
         public S2F33Handler(
             ILogger<S2F33Handler> logger,
             IEventReportService eventReportService,
             IStatusVariableService svidService,
+            IEquipmentStateService equipmentStateService,
             IOptions<EquipmentSystemConfiguration> options) : base(logger)
         {
             _eventReportService = eventReportService ?? throw new ArgumentNullException(nameof(eventReportService));
             _svidService = svidService ?? throw new ArgumentNullException(nameof(svidService));
+            _equipmentStateService = equipmentStateService ?? throw new ArgumentNullException(nameof(equipmentStateService));
             _config = options?.Value ?? throw new ArgumentNullException(nameof(options));
             _configLock = new SemaphoreSlim(1, 1);
             _reportDefinitions = new Dictionary<uint, ReportDefinition>();
@@ -224,6 +233,42 @@ namespace DiceEquipmentSystem.Secs.Handlers
         public override async Task<SecsMessage?> HandleAsync(SecsMessage message, CancellationToken cancellationToken = default)
         {
             Logger.LogInformation("收到S2F33 (Define Report) 事件报告定义请求");
+
+            // ===== 新增：检查通信状态（SEMI E30标准要求） =====
+            // 根据SEMI E30标准，只有在通信建立后才能处理S2F33
+            try
+            {
+                // 检查设备状态服务是否可用
+                if (_equipmentStateService == null)
+                {
+                    Logger.LogWarning("拒绝S2F33请求：设备状态服务不可用");
+                    return CreateS2F34Response(DefineReportAck.Denied);
+                }
+
+                // 检查通信是否已启用
+                var commEnabled = await _equipmentStateService.IsCommunicationEnabledAsync();
+                if (!commEnabled)
+                {
+                    Logger.LogWarning("拒绝S2F33请求：通信状态未启用（需要先成功完成S1F13/S1F14）");
+                    return CreateS2F34Response(DefineReportAck.Denied);
+                }
+
+                // 检查控制状态
+                var controlState = await _equipmentStateService.GetControlStateAsync();
+                if (controlState == ControlState.EquipmentOffline)
+                {
+                    Logger.LogWarning("拒绝S2F33请求：设备处于离线状态（需要先成功完成S1F17/S1F18）");
+                    return CreateS2F34Response(DefineReportAck.Denied);
+                }
+
+                Logger.LogDebug("通信状态检查通过，控制状态: {ControlState}", controlState);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "检查通信状态时发生异常");
+                return CreateS2F34Response(DefineReportAck.Denied);
+            }
+            // ===== 结束新增 =====
 
             // 使用信号量确保配置串行执行
             await _configLock.WaitAsync(cancellationToken);

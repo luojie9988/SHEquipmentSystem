@@ -120,6 +120,12 @@ namespace DiceEquipmentSystem.Services.Interfaces
         /// 重置处理状态
         /// </summary>
         /// <returns>是否成功</returns>
+        /// <summary>
+        /// 完成处理状态初始化
+        /// </summary>
+        /// <returns>是否成功</returns>
+        Task<bool> CompleteProcessInitializationAsync();
+
         Task<bool> ResetProcessAsync();
 
         #endregion
@@ -181,6 +187,12 @@ namespace DiceEquipmentSystem.Services.Interfaces
         /// </summary>
         /// <returns>true表示通信已建立</returns>
         Task<bool> IsCommunicationEstablishedAsync();
+
+        /// <summary>
+        /// 检查通信是否已启用
+        /// </summary>
+        /// <returns>true表示通信已启用</returns>
+        Task<bool> IsCommunicationEnabledAsync();
 
         #endregion
 

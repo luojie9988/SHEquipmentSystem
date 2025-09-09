@@ -534,6 +534,22 @@ namespace DiceEquipmentSystem.Secs.Handlers
         private async Task<(bool CanModify, string Reason)> ValidateDeviceState(
             CancellationToken cancellationToken)
         {
+            // ===== 新增：SEMI E30标准通信状态检查 =====
+            // 首先检查通信是否已建立（S1F13/S1F14必须成功）
+            var commEnabled = await _stateService.IsCommunicationEnabledAsync();
+            if (!commEnabled)
+            {
+                return (false, "通信未建立（需要先成功完成S1F13/S1F14）");
+            }
+
+            // 检查控制状态（S1F17/S1F18必须成功）
+            var controlState = await _stateService.GetControlStateAsync();
+            if (controlState == ControlState.EquipmentOffline)
+            {
+                return (false, "设备处于离线状态（需要先成功完成S1F17/S1F18）");
+            }
+            // ===== 结束新增 =====
+
             var statusInfo = await _stateService.GetStatusInfoAsync();
 
             // 必须在线才能修改
@@ -580,6 +596,7 @@ namespace DiceEquipmentSystem.Secs.Handlers
             return ceid switch
             {
                 >= 200 and <= 249 => true,      // 系统事件
+                >= 300 and <= 399 => true,      // 处理事件
                 >= 11000 and <= 11199 => true,  // 材料和工艺事件
                 _ => false
             };

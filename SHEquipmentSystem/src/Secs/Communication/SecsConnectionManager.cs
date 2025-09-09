@@ -132,6 +132,14 @@ namespace DiceEquipmentSystem.Secs.Communication
         /// <summary>
         /// 停止连接
         /// </summary>
+        /// <summary>
+        /// 获取SECS配置
+        /// </summary>
+        public object GetConfiguration()
+        {
+            return _config;
+        }
+
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             try

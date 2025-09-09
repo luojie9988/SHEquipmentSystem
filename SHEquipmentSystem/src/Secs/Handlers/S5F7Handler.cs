@@ -135,10 +135,10 @@ namespace DiceEquipmentSystem.Secs.Handlers
         /// 
         /// S5F8 响应格式:
         /// L,n
-        ///   1. <ALID1> 启用的报警ID1 (U4)
-        ///   2. <ALID2> 启用的报警ID2 (U4)
+        ///   1. &lt;ALID1&gt; 启用的报警ID1 (U4)
+        ///   2. &lt;ALID2&gt; 启用的报警ID2 (U4)
         ///   ...
-        ///   n. <ALIDn> 启用的报警IDn (U4)
+        ///   n. &lt;ALIDn&gt; 启用的报警IDn (U4)
         /// 
         /// 特殊情况：
         /// - 如果没有启用的报警，返回空列表

@@ -10,7 +10,29 @@
     
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="~/css/config/config-layout.css" />
-    
+    <!-- Vue.js和Element Plus -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/element-plus/icons-vue/dist/index.iife.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <!-- Element Plus 图标注册 -->
+    <script>
+        const { createApp } = Vue;
+        const ElementPlusIconsVue = window.ElementPlusIconsVue;
+
+        // 全局注册图标
+        window.registerIcons = function(app) {
+            for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+                app.component(key, component);
+            }
+        };
+    </script>
+
+    <!-- 通用脚本 -->
+    <script src="~/js/config/config-common.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
@@ -30,28 +52,6 @@
         @RenderBody()
     </main>
 
-    <!-- Vue.js和Element Plus -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
-    <script src="https://unpkg.com/element-plus/icons-vue/dist/index.iife.min.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    
-    <!-- Element Plus 图标注册 -->
-    <script>
-        const { createApp } = Vue;
-        const ElementPlusIconsVue = window.ElementPlusIconsVue;
-        
-        // 全局注册图标
-        window.registerIcons = function(app) {
-            for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-                app.component(key, component);
-            }
-        };
-    </script>
-    
-    <!-- 通用脚本 -->
-    <script src="~/js/config/config-common.js"></script>
-    
-    @await RenderSectionAsync("Scripts", required: false)
+   
 </body>
 </html>

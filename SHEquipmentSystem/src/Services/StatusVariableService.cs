@@ -241,7 +241,7 @@ namespace DiceEquipmentSystem.Services
             if (_svidDefinitions.TryAdd(svid, definition))
             {
                 _svidValues[svid] = defaultValue ?? new object(); // 确保不为null
-                _logger.LogInformation($"注册SVID: {svid} - {name} (默认值: {defaultValue})");
+                _logger.LogDebug($"注册SVID: {svid} - {name} (默认值: {defaultValue})");
             }
             else
             {
@@ -279,6 +279,14 @@ namespace DiceEquipmentSystem.Services
         public IEnumerable<SvidDefinition> GetAllSvidDefinitions()
         {
             return _svidDefinitions.Values.OrderBy(d => d.Svid);
+        }
+
+        /// <summary>
+        /// 获取已定义的SVID数量
+        /// </summary>
+        public int GetDefinedSvidCount()
+        {
+            return _svidDefinitions.Count;
         }
 
         #endregion

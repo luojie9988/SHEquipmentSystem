@@ -432,147 +432,147 @@ namespace DiceEquipmentSystem.Secs.Handlers
             var definitions = new Dictionary<uint, EcidDefinition>();
 
             // 设备配置常量
-            AddEcidDefinition(definitions, DicerECID.DeviceId,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.DeviceId,
                 "DeviceId", "设备标识", typeof(ushort), _config.Equipment.DeviceId, true);
 
-            AddEcidDefinition(definitions, DicerECID.ModelName,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.ModelName,
                 "ModelName", "设备型号", typeof(string), _config.Equipment.ModelName, true);
 
-            AddEcidDefinition(definitions, DicerECID.Manufacturer,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.Manufacturer,
                 "Manufacturer", "制造商", typeof(string), "AIMFAB", true);
 
-            AddEcidDefinition(definitions, DicerECID.SerialNumber,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.SerialNumber,
                 "SerialNumber", "序列号", typeof(string), "SN2024001", true);
 
-            AddEcidDefinition(definitions, DicerECID.SoftwareVersion,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.SoftwareVersion,
                 "SoftwareVersion", "软件版本", typeof(string), _config.Equipment.SoftwareRevision, true);
 
-            AddEcidDefinition(definitions, DicerECID.HardwareVersion,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.HardwareVersion,
                 "HardwareVersion", "硬件版本", typeof(string), "HW1.0", true);
 
-            AddEcidDefinition(definitions, DicerECID.MaxWaferSize,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxWaferSize,
                 "MaxWaferSize", "最大晶圆尺寸(mm)", typeof(uint), 300u, true);
 
-            AddEcidDefinition(definitions, DicerECID.MinWaferSize,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinWaferSize,
                 "MinWaferSize", "最小晶圆尺寸(mm)", typeof(uint), 100u, true);
 
             // 通信参数
-            AddEcidDefinition(definitions, DicerECID.T3Timeout,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.T3Timeout,
                 "T3Timeout", "T3超时时间(ms)", typeof(uint), (uint)_config.Equipment.T3, false);
 
-            AddEcidDefinition(definitions, DicerECID.T5Timeout,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.T5Timeout,
                 "T5Timeout", "T5超时时间(ms)", typeof(uint), (uint)_config.Equipment.T5, false);
 
-            AddEcidDefinition(definitions, DicerECID.T6Timeout,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.T6Timeout,
                 "T6Timeout", "T6超时时间(ms)", typeof(uint), (uint)_config.Equipment.T6, false);
 
-            AddEcidDefinition(definitions, DicerECID.T7Timeout,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.T7Timeout,
                 "T7Timeout", "T7超时时间(ms)", typeof(uint), (uint)_config.Equipment.T7, false);
 
-            AddEcidDefinition(definitions, DicerECID.T8Timeout,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.T8Timeout,
                 "T8Timeout", "T8超时时间(ms)", typeof(uint), (uint)_config.Equipment.T8, false);
 
-            AddEcidDefinition(definitions, DicerECID.LinkTestInterval,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.LinkTestInterval,
                 "LinkTestInterval", "LinkTest间隔(ms)", typeof(uint), (uint)_config.Equipment.LinkTestInterval, false);
 
-            AddEcidDefinition(definitions, DicerECID.RetryLimit,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.RetryLimit,
                 "RetryLimit", "重试限制次数", typeof(uint), 3u, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxSpoolSize,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxSpoolSize,
                 "MaxSpoolSize", "最大缓存大小(KB)", typeof(uint), 10240u, true);
 
             // 工艺参数限值
-            AddEcidDefinition(definitions, DicerECID.MaxCuttingSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxCuttingSpeed,
                 "MaxCuttingSpeed", "最大切割速度(mm/s)", typeof(float), 300.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinCuttingSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinCuttingSpeed,
                 "MinCuttingSpeed", "最小切割速度(mm/s)", typeof(float), 10.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxCuttingPressure,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxCuttingPressure,
                 "MaxCuttingPressure", "最大切割压力(kPa)", typeof(float), 500.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinCuttingPressure,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinCuttingPressure,
                 "MinCuttingPressure", "最小切割压力(kPa)", typeof(float), 50.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxSpindleSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxSpindleSpeed,
                 "MaxSpindleSpeed", "最大主轴转速(RPM)", typeof(uint), 60000u, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinSpindleSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinSpindleSpeed,
                 "MinSpindleSpeed", "最小主轴转速(RPM)", typeof(uint), 1000u, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxCoolingFlow,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxCoolingFlow,
                 "MaxCoolingFlow", "最大冷却流量(L/min)", typeof(float), 10.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinCoolingFlow,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinCoolingFlow,
                 "MinCoolingFlow", "最小冷却流量(L/min)", typeof(float), 1.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxVacuumPressure,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxVacuumPressure,
                 "MaxVacuumPressure", "最大真空压力(Pa)", typeof(float), 100000.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinVacuumPressure,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinVacuumPressure,
                 "MinVacuumPressure", "最小真空压力(Pa)", typeof(float), 10000.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MaxTemperature,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaxTemperature,
                 "MaxTemperature", "最大温度(℃)", typeof(float), 80.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.MinTemperature,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MinTemperature,
                 "MinTemperature", "最小温度(℃)", typeof(float), 15.0f, false);
 
             // 维护参数
-            AddEcidDefinition(definitions, DicerECID.MaintenanceInterval,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.MaintenanceInterval,
                 "MaintenanceInterval", "保养间隔(小时)", typeof(uint), 500u, false);
 
-            AddEcidDefinition(definitions, DicerECID.KnifeLifeLimit,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.KnifeLifeLimit,
                 "KnifeLifeLimit", "刀具寿命限制(次)", typeof(uint), 100000u, false);
 
-            AddEcidDefinition(definitions, DicerECID.KnifeWarningThreshold,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.KnifeWarningThreshold,
                 "KnifeWarningThreshold", "刀具预警阈值(%)", typeof(uint), 80u, false);
 
-            AddEcidDefinition(definitions, DicerECID.CleaningInterval,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.CleaningInterval,
                 "CleaningInterval", "清洁间隔(小时)", typeof(uint), 24u, false);
 
-            AddEcidDefinition(definitions, DicerECID.CalibrationInterval,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.CalibrationInterval,
                 "CalibrationInterval", "校准间隔(天)", typeof(uint), 90u, false);
 
-            AddEcidDefinition(definitions, DicerECID.FilterLifeLimit,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.FilterLifeLimit,
                 "FilterLifeLimit", "过滤器寿命(小时)", typeof(uint), 2000u, false);
 
-            AddEcidDefinition(definitions, DicerECID.LubricationInterval,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.LubricationInterval,
                 "LubricationInterval", "润滑间隔(小时)", typeof(uint), 100u, false);
 
             // SEMI标准要求的ECID
-            AddEcidDefinition(definitions, DicerECID.TimeFormat,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.TimeFormat,
                 "TimeFormat", "时钟格式(0=12小时,1=24小时)", typeof(uint), 1u, false);
 
             // 划裂片专用参数
-            AddEcidDefinition(definitions, DicerECID.DefaultCuttingSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.DefaultCuttingSpeed,
                 "DefaultCuttingSpeed", "默认切割速度(mm/s)", typeof(float), 100.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.DefaultCuttingPressure,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.DefaultCuttingPressure,
                 "DefaultCuttingPressure", "默认切割压力(kPa)", typeof(float), 200.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.DefaultSpindleSpeed,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.DefaultSpindleSpeed,
                 "DefaultSpindleSpeed", "默认主轴转速(RPM)", typeof(uint), 30000u, false);
 
-            AddEcidDefinition(definitions, DicerECID.KerfWidth,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.KerfWidth,
                 "KerfWidth", "切割槽宽度(μm)", typeof(float), 50.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.ChuckVacuumLevel,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.ChuckVacuumLevel,
                 "ChuckVacuumLevel", "吸盘真空度(kPa)", typeof(float), 80.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.AlignmentTolerance,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.AlignmentTolerance,
                 "AlignmentTolerance", "对准容差(μm)", typeof(float), 5.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.EdgeExclusion,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.EdgeExclusion,
                 "EdgeExclusion", "边缘排除区(mm)", typeof(float), 3.0f, false);
 
-            AddEcidDefinition(definitions, DicerECID.DicingMode,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.DicingMode,
                 "DicingMode", "切割模式(0=单刀,1=双刀)", typeof(uint), 0u, false);
 
-            AddEcidDefinition(definitions, DicerECID.CoolingMode,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.CoolingMode,
                 "CoolingMode", "冷却模式(0=水冷,1=气冷)", typeof(uint), 0u, false);
 
-            AddEcidDefinition(definitions, DicerECID.CleaningMode,
+            AddEcidDefinition(definitions, SemiIdDefinitions.Ecid.CleaningMode,
                 "CleaningMode", "清洁模式(0=手动,1=自动)", typeof(uint), 1u, false);
 
             Logger.LogDebug($"初始化了 {definitions.Count} 个ECID定义");
@@ -631,10 +631,10 @@ namespace DiceEquipmentSystem.Secs.Handlers
             // 这里简化处理，实际应从配置文件读取
             return ecid switch
             {
-                DicerECID.DefaultCuttingSpeed => "D1000",
-                DicerECID.DefaultCuttingPressure => "D1002",
-                DicerECID.DefaultSpindleSpeed => "D1004",
-                DicerECID.KnifeLifeLimit => "D1010",
+                SemiIdDefinitions.Ecid.DefaultCuttingSpeed => "D1000",
+                SemiIdDefinitions.Ecid.DefaultCuttingPressure => "D1002",
+                SemiIdDefinitions.Ecid.DefaultSpindleSpeed => "D1004",
+                SemiIdDefinitions.Ecid.KnifeLifeLimit => "D1010",
                 _ => null
             };
         }

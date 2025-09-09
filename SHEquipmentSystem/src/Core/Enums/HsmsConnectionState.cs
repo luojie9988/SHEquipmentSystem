@@ -22,7 +22,7 @@ namespace DiceEquipmentSystem.Core.Enums
         Connecting = 1,
 
         /// <summary>
-        /// 已连接但未选中
+        /// 已连接但未选中(NotSelected)
         /// </summary>
         Connected = 2,
 
