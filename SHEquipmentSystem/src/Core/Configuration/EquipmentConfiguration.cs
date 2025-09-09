@@ -214,6 +214,8 @@ namespace DiceEquipmentSystem.Core.Configuration
         /// 是否启用PLC通信
         /// </summary>
         public bool Enabled { get; set; } = false;
+        public int MaxRetryCount { get; set; }
+        public int ReceiveTimeout { get; set; }
     }
 
     /// <summary>

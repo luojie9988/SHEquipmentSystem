@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using DiceEquipmentSystem.Core.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -79,9 +80,9 @@ namespace DiceEquipmentSystem.PLC.Services
                 return false;
             }
 
-            if (config.ConnectTimeout < 1000)
+            if (config.ConnectionTimeout < 1000)
             {
-                _logger.LogWarning($"连接超时时间太短: {config.ConnectTimeout}ms");
+                _logger.LogWarning($"连接超时时间太短: {config.ConnectionTimeout}ms");
                 return false;
             }
 
@@ -103,7 +104,7 @@ namespace DiceEquipmentSystem.PLC.Services
                 Port = _configuration.GetValue("PLC:Port", 6000),
                 NetworkNumber = _configuration.GetValue<byte>("PLC:NetworkNumber", 0),
                 StationNumber = _configuration.GetValue<byte>("PLC:StationNumber", 0),
-                ConnectTimeout = _configuration.GetValue("PLC:ConnectTimeout", 5000),
+                ConnectionTimeout = _configuration.GetValue("PLC:ConnectTimeout", 5000),
                 ReceiveTimeout = _configuration.GetValue("PLC:ReceiveTimeout", 3000),
                 MaxRetryCount = _configuration.GetValue("PLC:MaxRetryCount", 3)
             };
@@ -117,27 +118,27 @@ namespace DiceEquipmentSystem.PLC.Services
     /// <summary>
     /// PLC配置信息
     /// </summary>
-    public class PlcConfiguration
-    {
-        /// <summary>IP地址</summary>
-        public string IpAddress { get; set; } = "192.168.1.10";
+    //public class PlcConfiguration
+    //{
+    //    /// <summary>IP地址</summary>
+    //    public string IpAddress { get; set; } = "192.168.1.10";
 
-        /// <summary>端口号</summary>
-        public int Port { get; set; } = 6000;
+    //    /// <summary>端口号</summary>
+    //    public int Port { get; set; } = 6000;
 
-        /// <summary>网络号</summary>
-        public byte NetworkNumber { get; set; } = 0;
+    //    /// <summary>网络号</summary>
+    //    public byte NetworkNumber { get; set; } = 0;
 
-        /// <summary>站号</summary>
-        public byte StationNumber { get; set; } = 0;
+    //    /// <summary>站号</summary>
+    //    public byte StationNumber { get; set; } = 0;
 
-        /// <summary>连接超时(毫秒)</summary>
-        public int ConnectTimeout { get; set; } = 5000;
+    //    /// <summary>连接超时(毫秒)</summary>
+    //    public int ConnectTimeout { get; set; } = 5000;
 
-        /// <summary>接收超时(毫秒)</summary>
-        public int ReceiveTimeout { get; set; } = 3000;
+    //    /// <summary>接收超时(毫秒)</summary>
+    //    public int ReceiveTimeout { get; set; } = 3000;
 
-        /// <summary>最大重试次数</summary>
-        public int MaxRetryCount { get; set; } = 3;
-    }
+    //    /// <summary>最大重试次数</summary>
+    //    public int MaxRetryCount { get; set; } = 3;
+    //}
 }

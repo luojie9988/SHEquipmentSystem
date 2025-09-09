@@ -89,7 +89,7 @@ namespace SHEquipmentSystem.Controllers
         {
             try
             {
-                var plcConfig = _configuration.GetSection("PLC").Get<PlcConfiguration>();
+                var plcConfig = _configuration.GetSection("PLC").Get<DiceEquipmentSystem.Core.Configuration.PlcConfiguration>();
                 return Json(plcConfig);
             }
             catch (Exception ex)
