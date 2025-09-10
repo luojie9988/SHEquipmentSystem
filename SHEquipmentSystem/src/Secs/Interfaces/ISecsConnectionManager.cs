@@ -51,10 +51,24 @@ namespace DiceEquipmentSystem.Secs.Interfaces
         /// </summary>
         Task SendWithoutReplyAsync(SecsMessage message);
 
+        #region 属性
+
         /// <summary>
-        /// 检查是否已连接
+        /// 是否已连接
         /// </summary>
         bool IsConnected { get; }
+
+        /// <summary>
+        /// 最后连接时间
+        /// </summary>
+        DateTime? LastConnectedTime { get; }
+
+        /// <summary>
+        /// 最后断开连接时间
+        /// </summary>
+        DateTime? LastDisconnectedTime { get; }
+
+        #endregion
 
         /// <summary>
         /// 检查是否已选中(Selected)
@@ -70,6 +84,8 @@ namespace DiceEquipmentSystem.Secs.Interfaces
         /// 获取SECS配置
         /// </summary>
         object GetConfiguration();
+        HsmsConnectionState GetConnectionStatus();
+        Statistics GetConnectionStatistics();
     }
 
     /// <summary>
@@ -142,5 +158,16 @@ namespace DiceEquipmentSystem.Secs.Interfaces
 
         /// <summary>取消</summary>
         Cancelled
+    }
+    public class Statistics
+    {
+        /// <summary>发送数量</summary>
+        public int messagesSent { get; set; }
+        /// <summary>搂收数量</summary>
+        public int messagesReceived { get; set; }
+        /// <summary>连接次数</summary>
+        public int connectionCount { get; set; }
+        /// <summary>运行时间</summary>
+        public int uptime { get; set; }
     }
 }

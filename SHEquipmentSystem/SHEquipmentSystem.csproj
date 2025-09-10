@@ -16,6 +16,8 @@
   <ItemGroup>
     <Compile Remove="Controllers\PLCConfigController1.cs" />
     <Compile Remove="Models\PLCConfigViewModel.cs" />
+    <Compile Remove="src\PLC\Services\MultiPlcConnectionManager.cs" />
+    <Compile Remove="src\PLC\Services\PlcConnectionInstance.cs" />
     <Compile Remove="Views\Shared\_ConfigLayout.cshtml.cs" />
   </ItemGroup>
 
@@ -56,6 +58,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

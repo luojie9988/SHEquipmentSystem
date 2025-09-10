@@ -31,7 +31,7 @@ namespace DiceEquipmentSystem.Secs.Communication
         private Task? _messageProcessingTask;
         private HsmsConnectionState _connectionState = HsmsConnectionState.Retry;
         private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
-
+        private DateTime _lastConnectedTime;
         #endregion
 
         #region 构造函数
@@ -69,6 +69,12 @@ namespace DiceEquipmentSystem.Secs.Communication
         /// </summary>
         public HsmsConnectionState HsmsConnectionState => _connectionState;
 
+        public DateTime LastConnectedTime => _lastConnectedTime;
+
+        DateTime? ISecsConnectionManager.LastConnectedTime => LastConnectedTime;
+
+        public DateTime? LastDisconnectedTime => throw new NotImplementedException();
+
         #endregion
 
         #region 公共事件
@@ -100,7 +106,7 @@ namespace DiceEquipmentSystem.Secs.Communication
             try
             {
                 _logger.LogInformation($"启动SECS连接 - 模式: {(_config.Equipment.IsActive ? "Active" : "Passive")}");
-
+                
                 // 创建HSMS组件
                 CreateHsmsComponents();
 
@@ -110,7 +116,7 @@ namespace DiceEquipmentSystem.Secs.Communication
                 // 启动连接
                 _cancellationTokenSource = new CancellationTokenSource();
                 _hsmsConnection!.Start(_cancellationTokenSource.Token);
-
+                _lastConnectedTime=DateTime.Now;
                 // 如果是Active模式，等待连接建立
                 if (_config.Equipment.IsActive)
                 {
@@ -385,6 +391,10 @@ namespace DiceEquipmentSystem.Secs.Communication
                 NewState = newState,
                 Timestamp = DateTime.Now
             });
+            if (newState==HsmsConnectionState.Connected)
+            {
+                _lastConnectedTime = DateTime.Now;
+            }
         }
 
         private void OnPrimaryMessageReceived(SecsMessage message, PrimaryMessageWrapper wrapper)
@@ -420,6 +430,29 @@ namespace DiceEquipmentSystem.Secs.Communication
         {
             StopAsync().Wait(5000);
             _sendSemaphore?.Dispose();
+        }
+
+
+
+        HsmsConnectionState GetConnectionStatus()
+        {
+            return _connectionState;
+        }
+
+        public Statistics GetConnectionStatistics()
+        {
+            return new Statistics()
+            {
+                messagesSent = 10,
+                messagesReceived = 11,
+                connectionCount = 2,
+                uptime = DateTime.Now.Hour
+            };
+        }
+
+        HsmsConnectionState ISecsConnectionManager.GetConnectionStatus()
+        {
+            return GetConnectionStatus();
         }
 
         #endregion
