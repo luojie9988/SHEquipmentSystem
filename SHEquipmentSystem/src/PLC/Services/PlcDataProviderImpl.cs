@@ -1,46 +1,53 @@
-// 文件路径: src/DiceEquipmentSystem/PLC/Services/PlcDataProviderImpl.cs
-// 版本: v3.2.0
-// 描述: PLC数据提供者 - 模拟模式实现
-// 更新: 2025-09-02 - 支持完整的生产流程模拟，不需要实际PLC硬件
+// 文件路径: src/SHEquipmentSystem/PLC/Services/PlcDataProviderImpl.cs
+// 版本: v4.0.0
+// 描述: PLC数据提供者实现 - 支持实际PLC连接和模拟模式
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DiceEquipmentSystem.Core.Models;
-using DiceEquipmentSystem.PLC.Interfaces;
-using DiceEquipmentSystem.PLC.Mapping;
-using DiceEquipmentSystem.PLC.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using HslCommunication;
+using HslCommunication.Profinet.Melsec;
+using DiceEquipmentSystem.Core.Configuration;
+using DiceEquipmentSystem.Core.Models;
+using DiceEquipmentSystem.PLC.Interfaces;
+using DiceEquipmentSystem.PLC.Models;
+using DiceEquipmentSystem.PLC.Mapping;
 
-namespace DiceEquipmentSystem.PLC.Services
+namespace SHEquipmentSystem.PLC.Services
 {
     /// <summary>
-    /// PLC数据提供者实现类 - 模拟模式
-    /// 模拟与三菱PLC的实时通信，用于测试和演示
+    /// PLC数据提供者实现 - 支持实际PLC连接和模拟模式
+    /// 根据配置自动切换实际PLC通信或模拟数据生成
     /// </summary>
-    /// <remarks>
-    /// 功能特点：
-    /// 1. 完全模拟PLC数据，不需要实际硬件
-    /// 2. 支持完整的生产流程模拟
-    /// 3. 自动生成变化的工艺数据
-    /// 4. 模拟事件触发和报警
-    /// 5. 支持远程命令响应
-    /// </remarks>
     public class PlcDataProviderImpl : IPlcDataProvider, IHostedService, IDisposable
     {
         #region 私有字段
 
         private readonly ILogger<PlcDataProviderImpl> _logger;
         private readonly IConfiguration _configuration;
-        private readonly PlcConnectionManager _connectionManager;
+        private readonly PlcConfiguration _plcConfig;
         private readonly PlcDataMapper _dataMapper;
+
+        /// <summary>三菱PLC通信对象（实际模式）</summary>
+        private MelsecMcNet? _plc;
+
+        /// <summary>连接状态</summary>
+        private volatile bool _isConnected;
+
+        /// <summary>是否使用模拟模式</summary>
+        private readonly bool _useSimulation;
 
         /// <summary>数据缓存</summary>
         private readonly ConcurrentDictionary<string, object> _dataCache;
+
+        /// <summary>读写锁</summary>
+        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
         /// <summary>数据采集定时器</summary>
         private Timer? _dataCollectionTimer;
@@ -48,23 +55,64 @@ namespace DiceEquipmentSystem.PLC.Services
         /// <summary>模拟数据生成定时器</summary>
         private Timer? _simulationTimer;
 
-        /// <summary>连接状态（模拟）</summary>
-        private volatile bool _isConnected;
+        /// <summary>重连定时器</summary>
+        private Timer? _reconnectTimer;
 
-        /// <summary>是否使用模拟模式</summary>
-        private bool _useSimulation;
-
-        /// <summary>采集周期(毫秒)</summary>
-        private readonly int _pollingInterval;
+        /// <summary>事件监控定时器</summary>
+        private Timer? _eventMonitorTimer;
 
         /// <summary>取消令牌源</summary>
         private CancellationTokenSource? _cancellationTokenSource;
 
-        /// <summary>随机数生成器</summary>
+        /// <summary>连接统计信息</summary>
+        private readonly PlcConnectionStatistics _statistics = new PlcConnectionStatistics();
+
+        /// <summary>最后连接时间</summary>
+        private DateTime? _lastConnectedTime;
+
+        /// <summary>最后错误信息</summary>
+        private string? _lastError;
+
+        /// <summary>随机数生成器（模拟模式）</summary>
         private readonly Random _random = new Random();
 
         /// <summary>模拟数据状态</summary>
         private SimulationState _simulationState = new SimulationState();
+
+        /// <summary>事件监控字典</summary>
+        private Dictionary<uint, string>? _monitoredEvents;
+
+        /// <summary>事件触发回调</summary>
+        private Action<uint>? _eventCallback;
+
+        #endregion
+
+        #region 属性
+
+        /// <summary>
+        /// 连接状态
+        /// </summary>
+        public bool IsConnected => _isConnected;
+
+        /// <summary>
+        /// 连接统计信息
+        /// </summary>
+        public PlcConnectionStatistics Statistics => _statistics;
+
+        /// <summary>
+        /// 最后连接时间
+        /// </summary>
+        public DateTime? LastConnectedTime => _lastConnectedTime;
+
+        /// <summary>
+        /// 最后错误信息
+        /// </summary>
+        public string? LastError => _lastError;
+
+        /// <summary>
+        /// 是否为模拟模式
+        /// </summary>
+        public bool IsSimulationMode => _useSimulation;
 
         #endregion
 
@@ -76,25 +124,33 @@ namespace DiceEquipmentSystem.PLC.Services
         public PlcDataProviderImpl(
             ILogger<PlcDataProviderImpl> logger,
             IConfiguration configuration,
-            PlcConnectionManager connectionManager,
             PlcDataMapper dataMapper)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
             _dataMapper = dataMapper ?? throw new ArgumentNullException(nameof(dataMapper));
 
+            // 加载配置
+            _plcConfig = LoadPlcConfiguration();
+            _useSimulation = _configuration.GetValue("PLC:UseSimulation", true);
             _dataCache = new ConcurrentDictionary<string, object>();
-            _pollingInterval = _configuration.GetValue("PLC:PollingInterval", 200);
-            _useSimulation = _configuration.GetValue("PLC:UseSimulation", true); // 默认使用模拟模式
-
-            InitializeSimulationData();
 
             _logger.LogInformation("════════════════════════════════════════════");
-            _logger.LogInformation("PLC数据提供者初始化");
-            _logger.LogInformation($"模式: {(_useSimulation ? "🎮 模拟模式" : "🔌 实际PLC")}");
-            _logger.LogInformation($"采集周期: {_pollingInterval}ms");
+            _logger.LogInformation("PLC数据提供者已初始化");
+            _logger.LogInformation($"运行模式: {(_useSimulation ? "🎮 模拟模式" : "🔌 实际PLC连接")}");
+            _logger.LogInformation($"IP地址: {_plcConfig.IpAddress}:{_plcConfig.Port}");
+            _logger.LogInformation($"网络号: {_plcConfig.NetworkNumber}, 站号: {_plcConfig.StationNumber}");
+            _logger.LogInformation($"采集周期: {_plcConfig.PollInterval}ms");
             _logger.LogInformation("════════════════════════════════════════════");
+
+            if (_useSimulation)
+            {
+                InitializeSimulationData();
+            }
+            else
+            {
+                InitializePlcConnection();
+            }
         }
 
         #endregion
@@ -112,24 +168,11 @@ namespace DiceEquipmentSystem.PLC.Services
 
             if (_useSimulation)
             {
-                // 模拟模式：直接设置为连接状态
-                _isConnected = true;
-                _logger.LogInformation("✅ 模拟PLC连接成功");
-                _logger.LogInformation("📊 初始化设备数据:");
-                _logger.LogInformation($"  - 坐标: X={_dataCache["D100"]}, Y={_dataCache["D102"]}, Z={_dataCache["D104"]}");
-                _logger.LogInformation($"  - 配方: {_dataCache["D400"]}");
-                _logger.LogInformation($"  - 批次: {_dataCache["D420"]}");
-                
-                // 启动模拟数据生成器
-                StartSimulation();
+                await StartSimulationModeAsync(cancellationToken);
             }
             else
             {
-                // 实际PLC连接（暂未实现）
-                _logger.LogWarning("⚠️ 实际PLC连接模式暂未实现，自动切换到模拟模式");
-                _useSimulation = true;
-                _isConnected = true;
-                StartSimulation();
+                await StartRealModeAsync(cancellationToken);
             }
 
             // 启动数据采集定时器
@@ -137,7 +180,7 @@ namespace DiceEquipmentSystem.PLC.Services
                 async _ => await CollectDataAsync(),
                 null,
                 TimeSpan.Zero,
-                TimeSpan.FromMilliseconds(_pollingInterval));
+                TimeSpan.FromMilliseconds(_plcConfig.PollInterval));
 
             _logger.LogInformation("✅ PLC数据采集服务已启动");
         }
@@ -151,13 +194,13 @@ namespace DiceEquipmentSystem.PLC.Services
 
             _dataCollectionTimer?.Dispose();
             _simulationTimer?.Dispose();
+            _reconnectTimer?.Dispose();
+            _eventMonitorTimer?.Dispose();
             _cancellationTokenSource?.Cancel();
 
-            _isConnected = false;
+            await DisconnectAsync();
 
             _logger.LogInformation("PLC数据采集服务已停止");
-
-            await Task.CompletedTask;
         }
 
         #endregion
@@ -165,510 +208,765 @@ namespace DiceEquipmentSystem.PLC.Services
         #region IPlcDataProvider实现
 
         /// <summary>
-        /// 获取设备数据
-        /// </summary>
-        public DiceDeviceData? GetDeviceData(int deviceId)
-        {
-            try
-            {
-                if (!_isConnected)
-                {
-                    _logger.LogWarning($"PLC未连接，无法获取设备{deviceId}数据");
-                    return null;
-                }
-
-                var deviceData = new DiceDeviceData
-                {
-                    DeviceId = deviceId,
-                    // 坐标数据
-                    CurrentX = GetCachedValue<float>("D100"),
-                    CurrentY = GetCachedValue<float>("D102"),
-                    CurrentZ = GetCachedValue<float>("D104"),
-                    CurrentTheta = GetCachedValue<float>("D106"),
-
-                    // 工艺数据
-                    ProcessSpeed = GetCachedValue<float>("D200"),
-                    ProcessPressure = GetCachedValue<float>("D202"),
-                    ProcessTemperature = GetCachedValue<float>("D204"),
-
-                    // 划刀信息
-                    KnifeType = GetCachedValue<int>("D300"),
-                    ScribeKnifeUsageCount = GetCachedValue<int>("D302"),
-                    BreakKnifeUsageCount = GetCachedValue<int>("D304"),
-
-                    // 材料信息
-                    CurrentRecipeId = GetCachedValue<string>("D400", 20),
-                    CurrentLotId = GetCachedValue<string>("D420", 20),
-                    CurrentWaferId = GetCachedValue<string>("D440", 20),
-                    CurrentSlotNumber = GetCachedValue<int>("D460"),
-
-                    // 生产统计
-                    TotalProcessedCount = GetCachedValue<int>("D500"),
-                    GoodCount = GetCachedValue<int>("D502"),
-                    NgCount = GetCachedValue<int>("D504"),
-
-                    // 时间戳
-                    LastUpdateTime = DateTime.Now
-                };
-
-                return deviceData;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"获取设备{deviceId}数据失败");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 读取单个PLC地址（模拟）
-        /// </summary>
-        public T? ReadPlcValue<T>(string address) where T : struct
-        {
-            if (!_isConnected)
-            {
-                _logger.LogWarning($"PLC未连接，无法读取地址{address}");
-                return null;
-            }
-
-            try
-            {
-                // 从缓存中读取模拟数据
-                if (_dataCache.TryGetValue(address, out var value))
-                {
-                    if (value is T typedValue)
-                    {
-                        return typedValue;
-                    }
-                    
-                    // 尝试转换类型
-                    try
-                    {
-                        return (T)Convert.ChangeType(value, typeof(T));
-                    }
-                    catch
-                    {
-                        _logger.LogWarning($"无法将地址{address}的值转换为类型{typeof(T)}");
-                    }
-                }
-
-                // 返回默认值
-                return default(T);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"读取PLC地址{address}异常");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 写入单个PLC地址（模拟）
-        /// </summary>
-        public bool WritePlcValue<T>(string address, T value) where T : struct
-        {
-            if (!_isConnected)
-            {
-                _logger.LogWarning($"PLC未连接，无法写入地址{address}");
-                return false;
-            }
-
-            try
-            {
-                _dataCache[address] = value!;
-                _logger.LogDebug($"写入PLC地址 {address} = {value}");
-                
-                // 触发相关事件处理
-                HandleWriteEvent(address, value);
-                
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"写入PLC地址{address}异常");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// 批量读取PLC数据
-        /// </summary>
-        public Dictionary<string, object> ReadBatch(List<PlcTag> tags)
-        {
-            var results = new Dictionary<string, object>();
-
-            if (!_isConnected)
-            {
-                _logger.LogWarning("PLC未连接，无法批量读取");
-                return results;
-            }
-
-            foreach (var tag in tags)
-            {
-                try
-                {
-                    if (_dataCache.TryGetValue(tag.Address, out var value))
-                    {
-                        results[tag.Name] = value;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"读取标签{tag.Name}失败");
-                }
-            }
-
-            return results;
-        }
-
-        /// <summary>
-        /// 批量写入PLC数据
-        /// </summary>
-        public bool WriteBatch(Dictionary<string, object> values)
-        {
-            if (!_isConnected)
-            {
-                _logger.LogWarning("PLC未连接，无法批量写入");
-                return false;
-            }
-
-            bool allSuccess = true;
-
-            foreach (var kvp in values)
-            {
-                try
-                {
-                    var tag = _dataMapper.GetTagByName(kvp.Key);
-                    if (tag == null)
-                    {
-                        _logger.LogWarning($"未找到标签{kvp.Key}的映射");
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    _dataCache[tag.Address] = kvp.Value;
-                    HandleWriteEvent(tag.Address, kvp.Value);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"写入标签{kvp.Key}失败");
-                    allSuccess = false;
-                }
-            }
-
-            return allSuccess;
-        }
-
-        /// <summary>
-        /// 获取PLC连接状态
-        /// </summary>
-        public bool IsConnected => _isConnected;
-
-        /// <summary>
-        /// 异步连接PLC（模拟）
+        /// 连接到PLC
         /// </summary>
         public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
-            try
+            if (_isConnected)
             {
-                if (_isConnected)
-                {
-                    _logger.LogDebug("PLC已经连接");
-                    return true;
-                }
-
-                // 模拟连接延迟
-                await Task.Delay(500, cancellationToken);
-                
-                _isConnected = true;
-                _logger.LogInformation("✅ 模拟PLC连接成功");
-                
-                // 启动模拟
-                StartSimulation();
-                
+                _logger.LogDebug("PLC已连接，跳过连接操作");
                 return true;
             }
-            catch (Exception ex)
+
+            if (_useSimulation)
             {
-                _logger.LogError(ex, "连接PLC失败");
-                return false;
+                return await ConnectSimulationAsync();
+            }
+            else
+            {
+                return await ConnectRealPlcAsync(cancellationToken);
             }
         }
 
         /// <summary>
-        /// 异步断开PLC连接
+        /// 断开PLC连接
         /// </summary>
         public async Task DisconnectAsync()
         {
+            if (!_isConnected)
+            {
+                return;
+            }
+
             try
             {
+                if (!_useSimulation)
+                {
+                    _plc?.ConnectClose();
+                }
+
                 _isConnected = false;
-                _simulationTimer?.Dispose();
-                _logger.LogInformation("已断开PLC连接");
+                _logger.LogInformation($"{(_useSimulation ? "模拟" : "实际")}PLC连接已断开");
+
                 await Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "断开PLC连接失败");
+                _logger.LogError(ex, "断开PLC连接时发生异常");
             }
         }
 
         /// <summary>
-        /// 读取SVID（状态变量）
+        /// 读取SVID值
         /// </summary>
-        public async Task<object?> ReadSvidAsync(uint svid, string? address = null, CancellationToken cancellationToken = default)
+        public async Task<object?> ReadSvidAsync(uint svid, string address, CancellationToken cancellationToken = default)
         {
-            await Task.Yield();
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取SVID {svid}");
+                return null;
+            }
 
             try
             {
-                var plcAddress = address ?? GetSvidAddress(svid);
-                if (string.IsNullOrEmpty(plcAddress))
+                object? result;
+
+                if (_useSimulation)
                 {
-                    _logger.LogWarning($"未找到SVID {svid} 的映射地址");
-                    return null;
+                    result = ReadSimulationValue(address);
+                }
+                else
+                {
+                    result = await ReadRealPlcValueAsync(address, cancellationToken);
                 }
 
-                if (_dataCache.TryGetValue(plcAddress, out var value))
+                if (result != null)
                 {
-                    return value;
+                    _statistics.ReceiveCount++;
+                    _logger.LogDebug($"读取SVID {svid} 成功: {address} = {result}");
                 }
 
-                return null;
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"读取SVID {svid} 失败");
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取SVID {svid} 失败: {address}");
                 return null;
             }
         }
 
         /// <summary>
-        /// 写入ECID（设备常量）
+        /// 写入ECID值
         /// </summary>
-        public async Task<bool> WriteEcidAsync(uint ecid, string? address, object value, CancellationToken cancellationToken = default)
+        public async Task<bool> WriteEcidAsync(uint ecid, string address, object value, CancellationToken cancellationToken = default)
         {
-            await Task.Yield();
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入ECID {ecid}");
+                return false;
+            }
 
             try
             {
-                var plcAddress = address ?? GetEcidAddress(ecid);
-                if (string.IsNullOrEmpty(plcAddress))
+                bool success;
+
+                if (_useSimulation)
                 {
-                    _logger.LogWarning($"未找到ECID {ecid} 的映射地址");
-                    return false;
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealPlcValueAsync(address, value, cancellationToken);
                 }
 
-                _dataCache[plcAddress] = value;
-                _logger.LogInformation($"设置ECID {ecid} (地址:{plcAddress}) = {value}");
-                
-                return true;
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入ECID {ecid} 成功: {address} = {value}");
+                }
+
+                return success;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"写入ECID {ecid} 失败");
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入ECID {ecid} 失败: {address}");
                 return false;
             }
         }
 
-        // 异步读取方法（模拟实现）
+        /// <summary>
+        /// 读取Int16值
+        /// </summary>
         public async Task<short> ReadInt16Async(string address, CancellationToken cancellationToken = default)
         {
-            await Task.Yield();
-            return ReadPlcValue<short>(address) ?? 0;
-        }
-
-        public async Task<int> ReadInt32Async(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return ReadPlcValue<int>(address) ?? 0;
-        }
-
-        public async Task<float> ReadFloatAsync(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return ReadPlcValue<float>(address) ?? 0f;
-        }
-
-        public async Task<string> ReadStringAsync(string address, int length = 32, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            if (_dataCache.TryGetValue(address, out var value) && value is string str)
+            if (!_isConnected)
             {
-                return str;
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0;
             }
-            return string.Empty;
-        }
-
-        public async Task<byte> ReadByteAsync(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return (byte)(ReadPlcValue<byte>(address) ?? 0);
-        }
-
-        public async Task<ushort> ReadUInt16Async(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return ReadPlcValue<ushort>(address) ?? 0;
-        }
-
-        public async Task<uint> ReadUInt32Async(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return ReadPlcValue<uint>(address) ?? 0;
-        }
-
-        public async Task<bool> ReadBoolAsync(string address, CancellationToken cancellationToken = default)
-        {
-            await Task.Yield();
-            return ReadPlcValue<bool>(address) ?? false;
-        }
-
-        /// <summary>
-        /// 执行PLC命令
-        /// </summary>
-        public async Task<PlcExecutionResult> ExecuteAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
-        {
-            var startTime = DateTime.Now;
-            await Task.Yield();
 
             try
             {
-                _logger.LogInformation($"═══ 执行PLC命令: {command} ═══");
-                bool success = false;
-                var resultData = new Dictionary<string, object>();
-
-                // 模拟命令执行
-                switch (command.ToUpper())
+                if (_useSimulation)
                 {
-                    case "START":
-                        _simulationState.IsProcessing = true;
-                        _simulationState.ProcessState = "Processing";
-                        _dataCache["M300"] = true;
-                        success = true;
-                        resultData["Status"] = "Processing";
-                        _logger.LogInformation("▶️ 设备开始处理");
-                        break;
-
-                    case "STOP":
-                        _simulationState.IsProcessing = false;
-                        _simulationState.ProcessState = "Stopped";
-                        _dataCache["M301"] = true;
-                        success = true;
-                        resultData["Status"] = "Stopped";
-                        _logger.LogInformation("⏹️ 设备停止");
-                        break;
-
-                    case "PAUSE":
-                        _simulationState.IsPaused = true;
-                        _simulationState.ProcessState = "Paused";
-                        _dataCache["M302"] = true;
-                        success = true;
-                        resultData["Status"] = "Paused";
-                        _logger.LogInformation("⏸️ 设备暂停");
-                        break;
-
-                    case "RESUME":
-                        _simulationState.IsPaused = false;
-                        _simulationState.ProcessState = "Processing";
-                        _dataCache["M303"] = true;
-                        success = true;
-                        resultData["Status"] = "Processing";
-                        _logger.LogInformation("▶️ 设备恢复");
-                        break;
-
-                    case "RESET":
-                        ResetSimulation();
-                        _dataCache["M304"] = true;
-                        success = true;
-                        resultData["Status"] = "Ready";
-                        _logger.LogInformation("🔄 设备复位");
-                        break;
-
-                    case "PP-SELECT":
-                        if (parameters.TryGetValue("RecipeId", out var recipeId))
-                        {
-                            _dataCache["D600"] = recipeId.ToString() ?? "";
-                            _dataCache["D400"] = recipeId.ToString() ?? "";  // 同时更新当前配方
-                            _simulationState.CurrentRecipeId = recipeId.ToString() ?? "";
-                            success = true;
-                            resultData["RecipeId"] = recipeId.ToString() ?? "";
-                            _logger.LogInformation($"📋 选择配方: {recipeId}");
-                        }
-                        break;
-
-                    case "SCANSLOTMAPPING":
-                        _dataCache["M305"] = true;
-                        _simulationState.SlotMappingComplete = true;
-                        success = true;
-                        resultData["Action"] = "SlotMappingStarted";
-                        _logger.LogInformation("🔍 开始槽位映射");
-                        
-                        // 模拟槽位映射结果
-                        Task.Run(async () =>
-                        {
-                            await Task.Delay(2000); // 模拟扫描时间
-                            TriggerEvent(11011); // SlotMapEnd事件
-                            _logger.LogInformation("✅ 槽位映射完成");
-                        });
-                        break;
-
-                    case "CASSETTESTART":
-                        _dataCache["M306"] = true;
-                        _simulationState.CassetteStarted = true;
-                        success = true;
-                        resultData["Action"] = "CassetteStarted";
-                        _logger.LogInformation("📦 Cassette开始处理");
-                        break;
-
-                    case "FRAMESTART":
-                        _dataCache["M307"] = true;
-                        _simulationState.FrameStarted = true;
-                        _simulationState.CurrentFrameNumber++;
-                        success = true;
-                        resultData["Action"] = "FrameStarted";
-                        resultData["FrameNumber"] = _simulationState.CurrentFrameNumber;
-                        _logger.LogInformation($"🔲 Frame {_simulationState.CurrentFrameNumber} 开始处理");
-                        break;
-
-                    default:
-                        return PlcExecutionResult.CreateFailure($"Unknown command: {command}",
-                            DateTime.Now - startTime);
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToInt16(value ?? 0);
                 }
-
-                return success
-                    ? PlcExecutionResult.CreateSuccess(resultData, DateTime.Now - startTime)
-                    : PlcExecutionResult.CreateFailure($"Failed to execute command: {command}",
-                        DateTime.Now - startTime);
+                else
+                {
+                    return await ReadRealInt16Async(address, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"执行PLC命令 {command} 异常");
-                return PlcExecutionResult.CreateFailure($"Exception: {ex.Message}",
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取Int16异常: {address}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 读取Int32值
+        /// </summary>
+        public async Task<int> ReadInt32Async(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToInt32(value ?? 0);
+                }
+                else
+                {
+                    return await ReadRealInt32Async(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取Int32异常: {address}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 读取Float值
+        /// </summary>
+        public async Task<float> ReadFloatAsync(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0f;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToSingle(value ?? 0);
+                }
+                else
+                {
+                    return await ReadRealFloatAsync(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取Float异常: {address}");
+                return 0f;
+            }
+        }
+
+        /// <summary>
+        /// 读取Boolean值
+        /// </summary>
+        public async Task<bool> ReadBoolAsync(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToBoolean(value ?? false);
+                }
+                else
+                {
+                    return await ReadRealBoolAsync(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取Bool异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 读取字符串值
+        /// </summary>
+        public async Task<string> ReadStringAsync(string address, int length = 32, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return string.Empty;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return value?.ToString() ?? string.Empty;
+                }
+                else
+                {
+                    return await ReadRealStringAsync(address, length, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取String异常: {address}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 读取Byte值
+        /// </summary>
+        public async Task<byte> ReadByteAsync(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToByte(value ?? 0);
+                }
+                else
+                {
+                    return await ReadRealByteAsync(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取Byte异常: {address}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 读取UInt16值
+        /// </summary>
+        public async Task<ushort> ReadUInt16Async(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToUInt16(value ?? 0);
+                }
+                else
+                {
+                    return await ReadRealUInt16Async(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取UInt16异常: {address}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 读取UInt32值
+        /// </summary>
+        public async Task<uint> ReadUInt32Async(string address, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法读取地址 {address}");
+                return 0;
+            }
+
+            try
+            {
+                if (_useSimulation)
+                {
+                    var value = ReadSimulationValue(address);
+                    return Convert.ToUInt32(value ?? 0);
+                }
+                else
+                {
+                    return await ReadRealUInt32Async(address, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"读取UInt32异常: {address}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 写入Int16值
+        /// </summary>
+        public async Task<bool> WriteInt16Async(string address, short value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealInt16Async(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入Int16成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入Int16异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入Int32值
+        /// </summary>
+        public async Task<bool> WriteInt32Async(string address, int value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealInt32Async(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入Int32成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入Int32异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入Float值
+        /// </summary>
+        public async Task<bool> WriteFloatAsync(string address, float value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealFloatAsync(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入Float成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入Float异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入Boolean值
+        /// </summary>
+        public async Task<bool> WriteBoolAsync(string address, bool value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealBoolAsync(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入Bool成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入Bool异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入Byte值
+        /// </summary>
+        public async Task<bool> WriteByteAsync(string address, byte value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealByteAsync(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入Byte成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入Byte异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入UInt16值
+        /// </summary>
+        public async Task<bool> WriteUInt16Async(string address, ushort value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealUInt16Async(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入UInt16成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入UInt16异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入UInt32值
+        /// </summary>
+        public async Task<bool> WriteUInt32Async(string address, uint value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealUInt32Async(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入UInt32成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入UInt32异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入字符串值
+        /// </summary>
+        public async Task<bool> WriteStringAsync(string address, string value, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                _logger.LogWarning($"PLC未连接，无法写入地址 {address}");
+                return false;
+            }
+
+            try
+            {
+                bool success;
+
+                if (_useSimulation)
+                {
+                    success = WriteSimulationValue(address, value);
+                }
+                else
+                {
+                    success = await WriteRealStringAsync(address, value, cancellationToken);
+                }
+
+                if (success)
+                {
+                    _statistics.SentCount++;
+                    _logger.LogDebug($"写入String成功: {address} = {value}");
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"写入String异常: {address}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 执行PLC命令（带参数）
+        /// </summary>
+        public async Task<PlcExecutionResult> ExecuteAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                return PlcExecutionResult.CreateFailure("PLC未连接，无法执行命令");
+            }
+
+            var startTime = DateTime.Now;
+
+            try
+            {
+                _logger.LogInformation($"执行PLC命令: {command}，参数: {string.Join(", ", parameters.Select(p => $"{p.Key}={p.Value}"))}");
+
+                if (_useSimulation)
+                {
+                    return await ExecuteSimulationCommandAsync(command, parameters, cancellationToken);
+                }
+                else
+                {
+                    return await ExecuteRealCommandAsync(command, parameters, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, $"执行PLC命令异常: {command}");
+
+                return PlcExecutionResult.CreateFailure(
+                    $"执行命令异常: {ex.Message}",
                     DateTime.Now - startTime);
             }
         }
 
+        /// <summary>
+        /// 执行PLC命令（无参数）
+        /// </summary>
         public async Task<PlcExecutionResult> ExecuteAsync(string command, CancellationToken cancellationToken = default)
         {
             return await ExecuteAsync(command, new Dictionary<string, object>(), cancellationToken);
         }
 
         /// <summary>
-        /// 监控PLC事件（模拟）
+        /// 监控PLC事件
         /// </summary>
         public void MonitorEvents(Dictionary<uint, string> ceidAddress, Action<uint> onEventTriggered)
         {
-            if (ceidAddress == null || onEventTriggered == null)
-            {
-                _logger.LogWarning("事件映射或处理器为空，无法启动监控");
-                return;
-            }
+            _monitoredEvents = ceidAddress;
+            _eventCallback = onEventTriggered;
 
-            _simulationState.EventMapping = ceidAddress;
-            _simulationState.EventCallback = onEventTriggered;
-            
-            _logger.LogInformation($"📡 开始监控 {ceidAddress.Count} 个PLC事件（模拟模式）");
+            if (_monitoredEvents?.Any() == true)
+            {
+                _logger.LogInformation($"开始监控 {_monitoredEvents.Count} 个PLC事件");
+
+                // 启动事件监控定时器（每100ms检查一次）
+                _eventMonitorTimer = new Timer(
+                    async _ => await CheckEventsAsync(),
+                    null,
+                    TimeSpan.Zero,
+                    TimeSpan.FromMilliseconds(100));
+            }
         }
 
         /// <summary>
@@ -676,79 +974,95 @@ namespace DiceEquipmentSystem.PLC.Services
         /// </summary>
         public async Task StopEventMonitoringAsync()
         {
-            _simulationState.EventMapping = null;
-            _simulationState.EventCallback = null;
-            _logger.LogInformation("事件监控已停止");
+            _eventMonitorTimer?.Dispose();
+            _eventMonitorTimer = null;
+            _monitoredEvents = null;
+            _eventCallback = null;
+
+            _logger.LogInformation("PLC事件监控已停止");
             await Task.CompletedTask;
         }
 
         #endregion
 
-        #region 模拟数据生成
+        #region 模拟模式实现
+
+        /// <summary>
+        /// 启动模拟模式
+        /// </summary>
+        private async Task StartSimulationModeAsync(CancellationToken cancellationToken)
+        {
+            _isConnected = true;
+            _lastConnectedTime = DateTime.Now;
+            _statistics.ConnectionCount++;
+
+            _logger.LogInformation("✅ 模拟PLC连接成功");
+            _logger.LogInformation("📊 初始化设备数据:");
+            _logger.LogInformation($"  - 坐标: X={_dataCache["D100"]}, Y={_dataCache["D102"]}, Z={_dataCache["D104"]}");
+            _logger.LogInformation($"  - 配方: {_dataCache["D400"]}");
+            _logger.LogInformation($"  - 批次: {_dataCache["D420"]}");
+
+            // 启动模拟数据生成器
+            StartSimulation();
+
+            await Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 连接模拟PLC
+        /// </summary>
+        private async Task<bool> ConnectSimulationAsync()
+        {
+            _isConnected = true;
+            _lastConnectedTime = DateTime.Now;
+            _statistics.ConnectionCount++;
+
+            _logger.LogInformation("✅ 模拟PLC连接成功");
+            return await Task.FromResult(true);
+        }
 
         /// <summary>
         /// 初始化模拟数据
         /// </summary>
         private void InitializeSimulationData()
         {
-            // 初始化坐标数据
-            _dataCache["D100"] = 100.0f;  // X坐标
-            _dataCache["D102"] = 200.0f;  // Y坐标
-            _dataCache["D104"] = 50.0f;   // Z坐标
-            _dataCache["D106"] = 0.0f;    // θ角度
+            // 设备坐标数据
+            _dataCache["D100"] = (short)1000;    // X坐标
+            _dataCache["D102"] = (short)2000;    // Y坐标  
+            _dataCache["D104"] = (short)500;     // Z坐标
 
-            // 初始化工艺数据
-            _dataCache["D200"] = 80.0f;   // 速度
-            _dataCache["D202"] = 2.5f;    // 压力
-            _dataCache["D204"] = 25.0f;   // 温度
+            // 设备状态
+            _dataCache["M100"] = true;           // 设备运行状态
+            _dataCache["M101"] = false;          // 报警状态
+            _dataCache["M102"] = true;           // 自动模式
 
-            // 初始化刀具信息
-            _dataCache["D300"] = 1;       // 刀具类型
-            _dataCache["D302"] = 1234;    // 划刀使用次数
-            _dataCache["D304"] = 567;     // 裂刀使用次数
+            // 工艺参数
+            _dataCache["D200"] = (short)1500;    // 切割速度
+            _dataCache["D202"] = (short)800;     // 进给速度
+            _dataCache["D204"] = (short)50;      // 切割深度
 
-            // 初始化材料信息
-            _dataCache["D400"] = "RECIPE001";    // 配方ID
-            _dataCache["D420"] = "LOT20250902";  // 批次ID
-            _dataCache["D440"] = "WAFER001";     // Wafer ID
-            _dataCache["D460"] = 1;              // 槽位号
+            // 生产数据
+            _dataCache["D300"] = (int)156;       // 当日产量
+            _dataCache["D302"] = (int)150;       // 良品数
+            _dataCache["D304"] = (int)6;         // 不良品数
 
-            // 初始化生产统计
-            _dataCache["D500"] = 100;     // 总处理数
-            _dataCache["D502"] = 95;      // 良品数
-            _dataCache["D504"] = 5;       // 不良品数
-
-            // 初始化系统状态
-            _dataCache["M200"] = true;    // 系统就绪
-            _dataCache["M201"] = false;   // 处理中
-            _dataCache["M202"] = false;   // 报警激活
-            _dataCache["M205"] = true;    // 自动模式
-
-            // 初始化标准SVID对应的地址
-            _dataCache["D280"] = "";      // EventsEnabled
-            _dataCache["D490"] = "";      // AlarmsEnabled
-            _dataCache["D491"] = "";      // AlarmsSet
-            _dataCache["D672"] = DateTime.Now.ToString("yyyyMMddHHmmss"); // Clock
-            _dataCache["D720"] = 2;       // ControlMode (2=OnlineRemote)
-            _dataCache["D721"] = 5;       // ControlState (5=OnlineRemote)
+            // 配方和批次
+            _dataCache["D400"] = "Recipe001";    // 当前配方
+            _dataCache["D420"] = "Batch20250910"; // 当前批次
 
             _logger.LogDebug("模拟数据初始化完成");
         }
 
         /// <summary>
-        /// 启动模拟
+        /// 启动模拟数据生成
         /// </summary>
         private void StartSimulation()
         {
-            if (!_useSimulation) return;
-
             _simulationTimer = new Timer(
                 _ => UpdateSimulationData(),
                 null,
-                TimeSpan.FromSeconds(1),
-                TimeSpan.FromSeconds(1)); // 每秒更新一次模拟数据
-
-            _logger.LogInformation("🎮 模拟数据生成器已启动");
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(2)); // 每2秒更新一次模拟数据
         }
 
         /// <summary>
@@ -758,110 +1072,45 @@ namespace DiceEquipmentSystem.PLC.Services
         {
             try
             {
-                // 更新时钟
-                _dataCache["D672"] = DateTime.Now.ToString("yyyyMMddHHmmss");
+                // 模拟坐标变化
+                var currentX = (short)(_dataCache.GetValueOrDefault("D100", (short)1000));
+                var currentY = (short)(_dataCache.GetValueOrDefault("D102", (short)2000));
 
-                // 如果正在处理，更新坐标位置
-                if (_simulationState.IsProcessing && !_simulationState.IsPaused)
+                _dataCache["D100"] = (short)(currentX + _random.Next(-50, 51));
+                _dataCache["D102"] = (short)(currentY + _random.Next(-30, 31));
+
+                // 模拟生产计数增加
+                var currentCount = (int)(_dataCache.GetValueOrDefault("D300", 156));
+                if (_random.Next(1, 11) > 7) // 30%概率增加产量
                 {
-                    // 模拟X轴移动（正弦波动）
-                    var time = DateTime.Now.Second + (DateTime.Now.Millisecond / 1000.0);
-                    var currentX = 250.0f + (float)(Math.Sin(time * 0.1) * 100);
-                    _dataCache["D100"] = currentX;
+                    _dataCache["D300"] = currentCount + 1;
 
-                    // 模拟Y轴移动（余弦波动）
-                    var currentY = 250.0f + (float)(Math.Cos(time * 0.1) * 100);
-                    _dataCache["D102"] = currentY;
-
-                    // 模拟Z轴轻微波动
-                    var currentZ = 50.0f + ((float)(_random.NextDouble() - 0.5) * 2);
-                    _dataCache["D104"] = currentZ;
-
-                    // 模拟温度波动
-                    var temp = GetCachedValue<float>("D204");
-                    temp += (float)((_random.NextDouble() - 0.5) * 0.2);
-                    _dataCache["D204"] = Math.Max(20, Math.Min(30, temp));
-
-                    // 模拟压力波动
-                    var pressure = GetCachedValue<float>("D202");
-                    pressure += (float)((_random.NextDouble() - 0.5) * 0.1);
-                    _dataCache["D202"] = Math.Max(2.0f, Math.Min(3.0f, pressure));
-
-                    // 每10秒增加处理计数
-                    if (DateTime.Now.Second % 10 == 0)
+                    // 95%良品率
+                    if (_random.Next(1, 101) <= 95)
                     {
-                        var total = GetCachedValue<int>("D500");
-                        total++;
-                        _dataCache["D500"] = total;
-
-                        // 95%良率
-                        if (_random.Next(100) < 95)
-                        {
-                            var good = GetCachedValue<int>("D502");
-                            _dataCache["D502"] = good + 1;
-                        }
-                        else
-                        {
-                            var ng = GetCachedValue<int>("D504");
-                            _dataCache["D504"] = ng + 1;
-                        }
-
-                        // 增加刀具使用次数
-                        var scribeCount = GetCachedValue<int>("D302");
-                        _dataCache["D302"] = scribeCount + 1;
-
-                        _logger.LogDebug($"生产计数更新: 总数={total+1}");
+                        var goodCount = (int)(_dataCache.GetValueOrDefault("D302", 150));
+                        _dataCache["D302"] = goodCount + 1;
                     }
-
-                    // 模拟Frame处理完成事件（每15秒）
-                    if (_simulationState.FrameStarted && DateTime.Now.Second % 15 == 0)
+                    else
                     {
-                        TriggerEvent(11013); // Frame End事件
-                        _simulationState.FrameStarted = false;
-                        
-                        // 更新Wafer ID
-                        var waferId = GetCachedValue<string>("D440", 20);
-                        var waferNum = int.Parse(waferId.Replace("WAFER", "")) + 1;
-                        _dataCache["D440"] = $"WAFER{waferNum:D3}";
-                        _dataCache["D460"] = GetCachedValue<int>("D460") + 1; // 更新槽位号
-                        
-                        _logger.LogInformation($"✅ Frame {_simulationState.CurrentFrameNumber} 处理完成");
+                        var badCount = (int)(_dataCache.GetValueOrDefault("D304", 6));
+                        _dataCache["D304"] = badCount + 1;
                     }
                 }
 
-                // 更新系统状态
-                _dataCache["M201"] = _simulationState.IsProcessing;
-
-                // 模拟随机报警（0.5%概率）
-                if (_random.Next(200) < 1 && !_simulationState.HasAlarm)
+                // 模拟偶发报警
+                if (_random.Next(1, 1001) == 1) // 0.1%概率触发报警
                 {
-                    _simulationState.HasAlarm = true;
-                    _dataCache["M202"] = true;
-                    var alarmId = 12000 + _random.Next(10); // 随机报警ID
-                    TriggerEvent((uint)alarmId);
-                    _logger.LogWarning($"⚠️ 模拟报警触发 ALID={alarmId}");
+                    _dataCache["M101"] = true;
+                    _logger.LogWarning("模拟报警触发");
                 }
-                else if (_simulationState.HasAlarm && _random.Next(100) < 5)
+                else if ((bool)(_dataCache.GetValueOrDefault("M101", false)) && _random.Next(1, 6) == 1)
                 {
-                    // 5%概率清除报警
-                    _simulationState.HasAlarm = false;
-                    _dataCache["M202"] = false;
-                    _logger.LogInformation("✅ 模拟报警清除");
+                    _dataCache["M101"] = false; // 20%概率清除报警
+                    _logger.LogInformation("模拟报警清除");
                 }
 
-                // 定期触发一些生产事件
-                if (_simulationState.IsProcessing && !_simulationState.IsPaused)
-                {
-                    if (DateTime.Now.Second == 30)
-                    {
-                        TriggerEvent(11006); // PictureSearch 图像搜索
-                    }
-                    else if (DateTime.Now.Second == 45)
-                    {
-                        TriggerEvent(11007); // ParaPosition 图像对位
-                    }
-                }
-
+                _logger.LogTrace("模拟数据已更新");
             }
             catch (Exception ex)
             {
@@ -870,73 +1119,792 @@ namespace DiceEquipmentSystem.PLC.Services
         }
 
         /// <summary>
-        /// 触发事件
+        /// 读取模拟值
         /// </summary>
-        private void TriggerEvent(uint ceid)
+        private object? ReadSimulationValue(string address)
         {
-            if (_simulationState.EventCallback != null)
+            _dataCache.TryGetValue(address, out var value);
+            return value;
+        }
+
+        /// <summary>
+        /// 写入模拟值
+        /// </summary>
+        private bool WriteSimulationValue(string address, object value)
+        {
+            _dataCache[address] = value;
+            _logger.LogDebug($"写入模拟值: {address} = {value}");
+            return true;
+        }
+
+        /// <summary>
+        /// 执行模拟命令
+        /// </summary>
+        private async Task<PlcExecutionResult> ExecuteSimulationCommandAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
             {
-                Task.Run(() =>
+                await Task.Delay(100, cancellationToken); // 模拟执行时间
+
+                switch (command.ToUpper())
                 {
-                    try
-                    {
-                        _simulationState.EventCallback(ceid);
-                        _logger.LogInformation($"🎯 触发事件 CEID={ceid}");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, $"处理事件 CEID={ceid} 异常");
-                    }
-                });
-            }
-        }
+                    case "START_EQUIPMENT":
+                        _dataCache["M100"] = true; // 设备运行状态
+                        _logger.LogInformation("模拟设备启动成功");
+                        break;
 
-        /// <summary>
-        /// 处理写入事件
-        /// </summary>
-        private void HandleWriteEvent(string address, object value)
-        {
-            // 根据写入的地址触发相应的事件
-            switch (address)
+                    case "STOP_EQUIPMENT":
+                        _dataCache["M100"] = false; // 设备停止状态
+                        _logger.LogInformation("模拟设备停止成功");
+                        break;
+
+                    case "RESET_EQUIPMENT":
+                        _dataCache["M101"] = false; // 清除报警
+                        _dataCache["D300"] = 0; // 重置产量计数
+                        _logger.LogInformation("模拟设备重置成功");
+                        break;
+
+                    case "CHANGE_RECIPE":
+                        if (parameters.TryGetValue("recipeName", out var recipe))
+                        {
+                            _dataCache["D400"] = recipe.ToString();
+                            _logger.LogInformation($"模拟配方切换成功: {recipe}");
+                        }
+                        break;
+
+                    default:
+                        return PlcExecutionResult.CreateFailure(
+                            $"未知的模拟命令: {command}",
+                            DateTime.Now - startTime);
+                }
+
+                return PlcExecutionResult.CreateSuccess(
+                    new Dictionary<string, object> { { "command", command }, { "result", "success" } },
+                    DateTime.Now - startTime);
+            }
+            catch (Exception ex)
             {
-                case "M300": // START
-                    if ((bool)value) TriggerEvent(11004); // ProcessStart
-                    break;
-                case "M301": // STOP
-                    if ((bool)value) TriggerEvent(11005); // ProcessEnd
-                    break;
-                case "M305": // ScanSlotMapping
-                    if ((bool)value)
-                    {
-                        // 槽位映射会在命令执行中延迟触发
-                    }
-                    break;
-                case "M306": // CassetteStart
-                    if ((bool)value) TriggerEvent(11014); // CST.ST
-                    break;
-                case "M307": // FrameStart
-                    if ((bool)value) TriggerEvent(11012); // FrameStart
-                    break;
-                case "D400": // Recipe切换
-                case "D600": // Recipe选择
-                    TriggerEvent(11003); // PPSelected
-                    break;
+                return PlcExecutionResult.CreateFailure(
+                    $"执行模拟命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
             }
-        }
-
-        /// <summary>
-        /// 重置模拟状态
-        /// </summary>
-        private void ResetSimulation()
-        {
-            _simulationState = new SimulationState();
-            InitializeSimulationData();
-            _logger.LogInformation("🔄 模拟状态已重置");
         }
 
         #endregion
 
-        #region 私有方法
+        #region 实际PLC模式实现
+
+        /// <summary>
+        /// 启动实际PLC模式
+        /// </summary>
+        private async Task StartRealModeAsync(CancellationToken cancellationToken)
+        {
+            // 尝试连接实际PLC
+            await ConnectAsync(cancellationToken);
+
+            // 启动重连定时器（如果启用自动重连）
+            if (_plcConfig.EnableAutoReconnect)
+            {
+                _reconnectTimer = new Timer(
+                    async _ => await CheckAndReconnectAsync(),
+                    null,
+                    TimeSpan.FromMilliseconds(_plcConfig.ReconnectInterval),
+                    TimeSpan.FromMilliseconds(_plcConfig.ReconnectInterval));
+            }
+        }
+
+        /// <summary>
+        /// 连接实际PLC
+        /// </summary>
+        private async Task<bool> ConnectRealPlcAsync(CancellationToken cancellationToken)
+        {
+            if (_plc == null)
+            {
+                _logger.LogError("PLC连接对象未初始化");
+                return false;
+            }
+
+            try
+            {
+                _logger.LogInformation($"正在连接PLC: {_plcConfig.IpAddress}:{_plcConfig.Port}");
+
+                var connectResult = await Task.Run(() => _plc.ConnectServer(), cancellationToken);
+
+                if (connectResult?.IsSuccess == true)
+                {
+                    _isConnected = true;
+                    _lastConnectedTime = DateTime.Now;
+                    _lastError = null;
+                    _statistics.ConnectionCount++;
+
+                    _logger.LogInformation($"✅ PLC连接成功: {_plcConfig.IpAddress}:{_plcConfig.Port}");
+
+                    // 测试连接有效性
+                    await TestRealConnectionAsync();
+
+                    return true;
+                }
+                else
+                {
+                    _lastError = connectResult?.Message ?? "连接失败";
+                    _statistics.ErrorCount++;
+
+                    _logger.LogError($"❌ PLC连接失败: {_lastError}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                _statistics.ErrorCount++;
+                _logger.LogError(ex, "PLC连接异常");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 测试实际PLC连接
+        /// </summary>
+        private async Task TestRealConnectionAsync()
+        {
+            try
+            {
+                // 尝试读取一个测试地址来验证连接
+                var testAddress = "M100"; // 测试地址
+                await Task.Run(() => _plc?.ReadBool(testAddress));
+
+                _logger.LogDebug("实际PLC连接测试成功");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "实际PLC连接测试失败，但连接可能仍然有效");
+            }
+        }
+
+        /// <summary>
+        /// 读取实际PLC值
+        /// </summary>
+        private async Task<object?> ReadRealPlcValueAsync(string address, CancellationToken cancellationToken)
+        {
+            // 根据地址类型判断读取方法
+            if (address.StartsWith("M") || address.StartsWith("X") || address.StartsWith("Y"))
+            {
+                return await ReadRealBoolAsync(address, cancellationToken);
+            }
+            else if (address.StartsWith("D") || address.StartsWith("W"))
+            {
+                return await ReadRealInt16Async(address, cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning($"未识别的地址类型: {address}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 写入实际PLC值
+        /// </summary>
+        private async Task<bool> WriteRealPlcValueAsync(string address, object value, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // 根据地址类型和值类型判断写入方法
+                if (address.StartsWith("M") || address.StartsWith("X") || address.StartsWith("Y"))
+                {
+                    if (value is bool boolValue)
+                    {
+                        return await WriteRealBoolAsync(address, boolValue, cancellationToken);
+                    }
+                }
+                else if (address.StartsWith("D") || address.StartsWith("W"))
+                {
+                    if (value is short shortValue)
+                    {
+                        return await WriteRealInt16Async(address, shortValue, cancellationToken);
+                    }
+                    else if (value is int intValue)
+                    {
+                        return await WriteRealInt32Async(address, intValue, cancellationToken);
+                    }
+                    else if (value is float floatValue)
+                    {
+                        return await WriteRealFloatAsync(address, floatValue, cancellationToken);
+                    }
+                }
+
+                _logger.LogWarning($"无法写入地址 {address}，值类型: {value?.GetType()}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"写入地址 {address} 异常");
+                return false;
+            }
+        }
+
+        // 实际PLC读取方法
+        private async Task<short> ReadRealInt16Async(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadInt16(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取Int16失败: {address} - {result?.Message}");
+                return 0;
+            }
+        }
+
+        private async Task<int> ReadRealInt32Async(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadInt32(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取Int32失败: {address} - {result?.Message}");
+                return 0;
+            }
+        }
+
+        private async Task<float> ReadRealFloatAsync(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadFloat(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取Float失败: {address} - {result?.Message}");
+                return 0f;
+            }
+        }
+
+        private async Task<bool> ReadRealBoolAsync(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadBool(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取Bool失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<string> ReadRealStringAsync(string address, int length, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadString(address, (ushort)length), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content ?? string.Empty;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取String失败: {address} - {result?.Message}");
+                return string.Empty;
+            }
+        }
+
+        private async Task<byte> ReadRealByteAsync(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Read(address,1), cancellationToken);
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value[0];
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取Byte失败: {address} - {result?.Message}");
+                return 0;
+            }
+        }
+
+        private async Task<ushort> ReadRealUInt16Async(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadUInt16(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取UInt16失败: {address} - {result?.Message}");
+                return 0;
+            }
+        }
+
+        private async Task<uint> ReadRealUInt32Async(string address, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.ReadUInt32(address), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.ReceiveCount++;
+                var value = result.Content;
+                _dataCache[address] = value;
+                return value;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"读取UInt32失败: {address} - {result?.Message}");
+                return 0;
+            }
+        }
+
+        // 实际PLC写入方法
+        private async Task<bool> WriteRealInt16Async(string address, short value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入Int16失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealInt32Async(string address, int value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入Int32失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealFloatAsync(string address, float value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入Float失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealBoolAsync(string address, bool value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入Bool失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealByteAsync(string address, byte value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入Byte失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealUInt16Async(string address, ushort value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入UInt16失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealUInt32Async(string address, uint value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入UInt32失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> WriteRealStringAsync(string address, string value, CancellationToken cancellationToken)
+        {
+            var result = await Task.Run(() => _plc?.Write(address, value), cancellationToken);
+
+            if (result?.IsSuccess == true)
+            {
+                _statistics.SentCount++;
+                _dataCache[address] = value;
+                return true;
+            }
+            else
+            {
+                _statistics.ErrorCount++;
+                _logger.LogWarning($"写入String失败: {address} - {result?.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 执行实际PLC命令
+        /// </summary>
+        private async Task<PlcExecutionResult> ExecuteRealCommandAsync(string command, Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
+            {
+                // 这里可以根据具体的PLC命令实现相应的逻辑
+                // 例如：启动设备、停止设备、切换模式等
+
+                switch (command.ToUpper())
+                {
+                    case "START_EQUIPMENT":
+                        return await ExecuteStartEquipmentCommand(parameters, cancellationToken);
+
+                    case "STOP_EQUIPMENT":
+                        return await ExecuteStopEquipmentCommand(parameters, cancellationToken);
+
+                    case "RESET_EQUIPMENT":
+                        return await ExecuteResetEquipmentCommand(parameters, cancellationToken);
+
+                    case "CHANGE_RECIPE":
+                        return await ExecuteChangeRecipeCommand(parameters, cancellationToken);
+
+                    default:
+                        return PlcExecutionResult.CreateFailure(
+                            $"未知的PLC命令: {command}",
+                            DateTime.Now - startTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                return PlcExecutionResult.CreateFailure(
+                    $"执行实际PLC命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
+            }
+        }
+
+        #endregion
+
+        #region 命令执行实现
+
+        private async Task<PlcExecutionResult> ExecuteStartEquipmentCommand(Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
+            {
+                // 写入启动信号到PLC
+                var success = await WriteBoolAsync("M200", true, cancellationToken); // 启动信号地址
+
+                if (success)
+                {
+                    return PlcExecutionResult.CreateSuccess(
+                        new Dictionary<string, object> { { "started", true } },
+                        DateTime.Now - startTime);
+                }
+                else
+                {
+                    return PlcExecutionResult.CreateFailure(
+                        "发送启动信号失败",
+                        DateTime.Now - startTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                return PlcExecutionResult.CreateFailure(
+                    $"启动设备命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
+            }
+        }
+
+        private async Task<PlcExecutionResult> ExecuteStopEquipmentCommand(Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
+            {
+                // 写入停止信号到PLC
+                var success = await WriteBoolAsync("M201", true, cancellationToken); // 停止信号地址
+
+                if (success)
+                {
+                    return PlcExecutionResult.CreateSuccess(
+                        new Dictionary<string, object> { { "stopped", true } },
+                        DateTime.Now - startTime);
+                }
+                else
+                {
+                    return PlcExecutionResult.CreateFailure(
+                        "发送停止信号失败",
+                        DateTime.Now - startTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                return PlcExecutionResult.CreateFailure(
+                    $"停止设备命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
+            }
+        }
+
+        private async Task<PlcExecutionResult> ExecuteResetEquipmentCommand(Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
+            {
+                // 写入重置信号到PLC
+                var success = await WriteBoolAsync("M202", true, cancellationToken); // 重置信号地址
+
+                if (success)
+                {
+                    return PlcExecutionResult.CreateSuccess(
+                        new Dictionary<string, object> { { "reset", true } },
+                        DateTime.Now - startTime);
+                }
+                else
+                {
+                    return PlcExecutionResult.CreateFailure(
+                        "发送重置信号失败",
+                        DateTime.Now - startTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                return PlcExecutionResult.CreateFailure(
+                    $"重置设备命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
+            }
+        }
+
+        private async Task<PlcExecutionResult> ExecuteChangeRecipeCommand(Dictionary<string, object> parameters, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.Now;
+
+            try
+            {
+                if (!parameters.TryGetValue("recipeName", out var recipeObj))
+                {
+                    return PlcExecutionResult.CreateFailure(
+                        "缺少配方名称参数",
+                        DateTime.Now - startTime);
+                }
+
+                var recipeName = recipeObj.ToString();
+
+                // 写入配方名称到PLC
+                var success = await WriteStringAsync("D400", recipeName ?? "", cancellationToken);
+
+                if (success)
+                {
+                    return PlcExecutionResult.CreateSuccess(
+                        new Dictionary<string, object> { { "recipe", recipeName }, { "changed", true } },
+                        DateTime.Now - startTime);
+                }
+                else
+                {
+                    return PlcExecutionResult.CreateFailure(
+                        "写入配方名称失败",
+                        DateTime.Now - startTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                return PlcExecutionResult.CreateFailure(
+                    $"切换配方命令异常: {ex.Message}",
+                    DateTime.Now - startTime);
+            }
+        }
+
+        #endregion
+
+        #region 事件监控实现
+
+        /// <summary>
+        /// 检查事件状态
+        /// </summary>
+        private async Task CheckEventsAsync()
+        {
+            if (_monitoredEvents == null || _eventCallback == null || !_isConnected)
+            {
+                return;
+            }
+
+            try
+            {
+                foreach (var kvp in _monitoredEvents)
+                {
+                    var ceid = kvp.Key;
+                    var address = kvp.Value;
+
+                    bool eventTriggered;
+
+                    if (_useSimulation)
+                    {
+                        // 模拟事件触发（1%概率）
+                        eventTriggered = _random.Next(1, 1001) == 1;
+                    }
+                    else
+                    {
+                        // 读取实际PLC地址状态
+                        eventTriggered = await ReadBoolAsync(address);
+                    }
+
+                    if (eventTriggered)
+                    {
+                        _logger.LogInformation($"检测到事件触发: CEID={ceid}, 地址={address}");
+                        _eventCallback(ceid);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "检查PLC事件异常");
+            }
+        }
+
+        #endregion
+
+        #region 通用私有方法
+
+        /// <summary>
+        /// 加载PLC配置
+        /// </summary>
+        private PlcConfiguration LoadPlcConfiguration()
+        {
+            var config = _configuration.GetSection("PLC").Get<PlcConfiguration>();
+
+            if (config == null)
+            {
+                _logger.LogWarning("未找到PLC配置，使用默认配置");
+                config = new PlcConfiguration();
+            }
+
+            return config;
+        }
+
+        /// <summary>
+        /// 初始化PLC连接对象（实际模式）
+        /// </summary>
+        private void InitializePlcConnection()
+        {
+            try
+            {
+                _plc = new MelsecMcNet(_plcConfig.IpAddress, _plcConfig.Port)
+                {
+                    NetworkNumber = (byte)_plcConfig.NetworkNumber,
+                    NetworkStationNumber = (byte)_plcConfig.StationNumber,
+                    ConnectTimeOut = _plcConfig.ConnectionTimeout,
+                    ReceiveTimeOut = _plcConfig.ReceiveTimeout
+                };
+
+                _logger.LogInformation("实际PLC连接对象初始化完成");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "初始化PLC连接对象失败");
+                throw;
+            }
+        }
 
         /// <summary>
         /// 数据采集任务
@@ -950,14 +1918,10 @@ namespace DiceEquipmentSystem.PLC.Services
 
             try
             {
-                var tags = _dataMapper.GetAllActiveTags();
-                var batchData = ReadBatch(tags);
+                // 这里可以定义需要定期采集的PLC地址列表
+                // 实际实现时根据具体需求添加
 
-                // 触发数据变更事件
-                if (batchData.Count > 0)
-                {
-                    OnDataUpdated(batchData);
-                }
+                _logger.LogTrace($"{(_useSimulation ? "模拟" : "实际")}数据采集周期执行");
             }
             catch (Exception ex)
             {
@@ -966,152 +1930,84 @@ namespace DiceEquipmentSystem.PLC.Services
         }
 
         /// <summary>
-        /// 从缓存获取值
+        /// 检查连接并自动重连（仅实际模式）
         /// </summary>
-        private T GetCachedValue<T>(string address, int length = 0)
+        private async Task CheckAndReconnectAsync()
         {
-            if (_dataCache.TryGetValue(address, out var value))
+            if (_isConnected || _useSimulation)
             {
-                if (value is T typedValue)
-                {
-                    return typedValue;
-                }
-                try
-                {
-                    return (T)Convert.ChangeType(value, typeof(T));
-                }
-                catch
-                {
-                    // 转换失败，返回默认值
-                }
+                return;
             }
 
-            return default!;
-        }
-
-        /// <summary>
-        /// 触发数据更新事件
-        /// </summary>
-        private void OnDataUpdated(Dictionary<string, object> data)
-        {
-            DataUpdated?.Invoke(this, new PlcDataEventArgs { Data = data });
-        }
-
-        #endregion
-
-        #region 事件
-
-        /// <summary>
-        /// 数据更新事件
-        /// </summary>
-        public event EventHandler<PlcDataEventArgs>? DataUpdated;
-
-        #endregion
-
-        #region 辅助方法
-
-        /// <summary>
-        /// 获取SVID对应的PLC地址
-        /// </summary>
-        private string GetSvidAddress(uint svid)
-        {
-            return svid switch
+            try
             {
-                // 使用Common中的标准定义
-                280 => "D280",   // EventsEnabled
-                490 => "D490",   // AlarmsEnabled
-                491 => "D491",   // AlarmsSet
-                672 => "D672",   // Clock
-                720 => "D720",   // ControlMode
-                721 => "D721",   // ControlState
-                
-                // 自定义SVID (10001-10016)
-                10001 => "D10001", // PortID
-                10002 => "D10002", // CassetteID
-                10003 => "D420",   // LotID
-                10004 => "D400",   // PPID
-                10005 => "D10005", // CassetteSlotMap
-                10006 => "D500",   // ProcessedCount
-                10007 => "D300",   // KnifeModel
-                10008 => "D302",   // UseNO (ScribeKnifeUsageCount)
-                10009 => "D10009", // UseMAXNO
-                10010 => "D10010", // ProgressBar
-                10011 => "D10011", // BARNO
-                10012 => "D10012", // CurrentBAR
-                10013 => "D10013", // RFID
-                10014 => "D10014", // QRContent
-                10015 => "D10015", // GetFrameLY
-                10016 => "D10016", // PutFrameLY
-
-                // 坐标状态变量
-                1001 => "D100",  // CurrentX
-                1002 => "D102",  // CurrentY
-                1003 => "D104",  // CurrentZ
-                1004 => "D106",  // CurrentTheta
-
-                // 工艺状态变量
-                2001 => "D200",  // ProcessSpeed
-                2002 => "D202",  // ProcessPressure
-                2003 => "D204",  // ProcessTemperature
-
-                _ => ""
-            };
-        }
-
-        /// <summary>
-        /// 获取ECID对应的PLC地址
-        /// </summary>
-        private string GetEcidAddress(uint ecid)
-        {
-            return ecid switch
+                _logger.LogInformation("检测到PLC连接断开，尝试重连...");
+                await ConnectAsync(_cancellationTokenSource?.Token ?? CancellationToken.None);
+            }
+            catch (Exception ex)
             {
-                // 使用Common中的标准定义
-                250 => "D250",   // EstablishCommunicationsTimeout
-                310 => "D310",   // AnnotateEventReport
-                311 => "D311",   // ConfigEvents
-                675 => "D675",   // TimeFormat
-
-                _ => ""
-            };
+                _logger.LogError(ex, "自动重连失败");
+            }
         }
 
         #endregion
 
-        #region IDisposable
+        #region IDisposable实现
 
+        /// <summary>
+        /// 释放资源
+        /// </summary>
         public void Dispose()
         {
             _dataCollectionTimer?.Dispose();
             _simulationTimer?.Dispose();
+            _reconnectTimer?.Dispose();
+            _eventMonitorTimer?.Dispose();
             _cancellationTokenSource?.Dispose();
+            _lock?.Dispose();
+
+            if (!_useSimulation)
+            {
+                _plc?.ConnectClose();
+                _plc?.Dispose();
+            }
+
+            _logger.LogInformation("PLC数据提供者已释放资源");
         }
 
         #endregion
     }
 
+    #region 辅助类定义
+
     /// <summary>
-    /// 模拟状态类
+    /// PLC连接统计信息
     /// </summary>
-    internal class SimulationState
+    public class PlcConnectionStatistics
     {
-        public bool IsProcessing { get; set; }
-        public bool IsPaused { get; set; }
-        public bool HasAlarm { get; set; }
-        public string ProcessState { get; set; } = "Ready";
-        public string CurrentRecipeId { get; set; } = "RECIPE001";
-        public bool SlotMappingComplete { get; set; }
-        public bool CassetteStarted { get; set; }
-        public bool FrameStarted { get; set; }
-        public int CurrentFrameNumber { get; set; } = 0;
-        public Dictionary<uint, string>? EventMapping { get; set; }
-        public Action<uint>? EventCallback { get; set; }
+        /// <summary>连接次数</summary>
+        public int ConnectionCount { get; set; }
+
+        /// <summary>发送消息计数</summary>
+        public int SentCount { get; set; }
+
+        /// <summary>接收消息计数</summary>
+        public int ReceiveCount { get; set; }
+
+        /// <summary>错误计数</summary>
+        public int ErrorCount { get; set; }
     }
 
     /// <summary>
-    /// PLC数据事件参数
+    /// 模拟状态数据
     /// </summary>
-    public class PlcDataEventArgs : EventArgs
+    public class SimulationState
     {
-        public Dictionary<string, object> Data { get; set; } = new();
+        public bool IsRunning { get; set; } = true;
+        public DateTime StartTime { get; set; } = DateTime.Now;
+        public int CycleCount { get; set; } = 0;
     }
+
+
+    #endregion
 }

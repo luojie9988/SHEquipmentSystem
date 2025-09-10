@@ -1,0 +1,27 @@
+{
+  "version": "3.0",
+  "defaultProvider": "cdnjs",
+  "libraries": [
+    {
+      "library": "element-plus@2.11.2",
+      "destination": "wwwroot/lib/element-plus/"
+    },
+    {
+      "library": "vue@3.5.21",
+      "destination": "wwwroot/lib/vue/"
+    },
+    {
+      "library": "element-plus-icons-vue@2.3.2",
+      "destination": "wwwroot/lib/element-plus-icons-vue/"
+    },
+    {
+      "library": "axios@1.11.0",
+      "destination": "wwwroot/lib/axios/"
+    },
+    {
+      "provider": "unpkg",
+      "library": "@element-plus/locale@0.0.5",
+      "destination": "wwwroot/lib/element-plus/locale/"
+    }
+  ]
+}

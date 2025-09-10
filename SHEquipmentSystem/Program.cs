@@ -10,6 +10,7 @@ using DiceEquipmentSystem.Services;
 using DiceEquipmentSystem.Services.Interfaces;
 using Serilog;
 using Serilog.Events;
+using SHEquipmentSystem.PLC.Services;
 
 namespace SHEquipmentSystem
 {
@@ -191,7 +192,7 @@ namespace SHEquipmentSystem
             services.AddSingleton<PlcDataMapper>();
             services.AddSingleton<PlcDataProviderImpl>();
             services.AddSingleton<IPlcDataProvider>(provider => provider.GetService<PlcDataProviderImpl>()!);
-            services.AddHostedService<PlcDataProviderImpl>();
+            //services.AddHostedService<PlcDataProviderImpl>();
 
             // SECS连接管理器
             services.AddSingleton<ISecsConnectionManager, SecsConnectionManager>();

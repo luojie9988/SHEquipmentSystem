@@ -216,6 +216,8 @@ namespace DiceEquipmentSystem.Core.Configuration
         public bool Enabled { get; set; } = false;
         public int MaxRetryCount { get; set; }
         public int ReceiveTimeout { get; set; }
+        public  bool EnableAutoReconnect { get; set; }
+        public int ReconnectInterval { get ; set; }
     }
 
     /// <summary>
