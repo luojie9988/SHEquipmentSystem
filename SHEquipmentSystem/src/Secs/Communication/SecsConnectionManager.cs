@@ -32,6 +32,9 @@ namespace DiceEquipmentSystem.Secs.Communication
         private HsmsConnectionState _connectionState = HsmsConnectionState.Retry;
         private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
         private DateTime _lastConnectedTime;
+        private int _messagesSent;
+        private int _messagesReceived;
+        private int _connectionCount;
         #endregion
 
         #region 构造函数
@@ -196,7 +199,7 @@ namespace DiceEquipmentSystem.Secs.Communication
                 _logger.LogDebug($"发送消息: S{message.S}F{message.F}");
 
                 var reply = await _secsGem!.SendAsync(message, cancellationToken);
-
+                _messagesSent++;
                 if (reply != null)
                 {
                     _logger.LogDebug($"收到响应: S{reply.S}F{reply.F}");
@@ -282,6 +285,7 @@ namespace DiceEquipmentSystem.Secs.Communication
         {
             _hsmsConnection!.ConnectionChanged += (sender, state) =>
             {
+                if (state ==ConnectionState.Selected) _connectionCount++;
                 UpdateConnectionState((HsmsConnectionState)state);
             };
         }
@@ -321,6 +325,7 @@ namespace DiceEquipmentSystem.Secs.Communication
                 {
                     await foreach (var wrapper in _secsGem!.GetPrimaryMessageAsync(_cancellationTokenSource!.Token))
                     {
+                        _messagesReceived++;
                         await HandlePrimaryMessage(wrapper);
                     }
                 }
@@ -443,10 +448,9 @@ namespace DiceEquipmentSystem.Secs.Communication
         {
             return new Statistics()
             {
-                messagesSent = 10,
-                messagesReceived = 11,
-                connectionCount = 2,
-                uptime = DateTime.Now.Hour
+                messagesSent = _messagesSent,
+                messagesReceived = _messagesReceived,
+                connectionCount = _connectionCount
             };
         }
 
