@@ -1051,6 +1051,7 @@ namespace DiceEquipmentSystem.Services
             public string Description { get; set; } = "";
             public AlarmCategory Category { get; set; }
             public AlarmPriority Priority { get; set; }
+            public string PLCAddr { get; set; } = "";
         }
 
         /// <summary>
