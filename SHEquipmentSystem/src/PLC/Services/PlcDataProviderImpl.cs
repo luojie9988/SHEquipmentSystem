@@ -1273,7 +1273,7 @@ namespace SHEquipmentSystem.PLC.Services
             {
                 // 尝试读取一个测试地址来验证连接
                 var testAddress = "M100"; // 测试地址
-                await Task.Run(() => _plc?.ReadBool(testAddress));
+               var res= await Task.Run(() => _plc?.ReadBool(testAddress));
 
                 _logger.LogDebug("实际PLC连接测试成功");
             }
@@ -1416,6 +1416,7 @@ namespace SHEquipmentSystem.PLC.Services
             }
             else
             {
+                _isConnected = false;
                 _statistics.ErrorCount++;
                 _logger.LogWarning($"读取Bool失败: {address} - {result?.Message}");
                 return false;
@@ -1854,6 +1855,10 @@ namespace SHEquipmentSystem.PLC.Services
                         _logger.LogInformation($"检测到事件触发: CEID={ceid}, 地址={address}");
                         _eventCallback(ceid);
                     }
+                    else
+                    {
+                        this._isConnected = false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -1920,11 +1925,14 @@ namespace SHEquipmentSystem.PLC.Services
             {
                 // 这里可以定义需要定期采集的PLC地址列表
                 // 实际实现时根据具体需求添加
-
+                var res = await ReadBoolAsync("M10");
+               
+                var connect = this.IsConnected;
                 _logger.LogTrace($"{(_useSimulation ? "模拟" : "实际")}数据采集周期执行");
             }
             catch (Exception ex)
             {
+                _isConnected = false;
                 _logger.LogError(ex, "数据采集异常");
             }
         }

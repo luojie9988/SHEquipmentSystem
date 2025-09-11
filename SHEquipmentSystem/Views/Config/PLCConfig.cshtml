@@ -77,13 +77,13 @@
 
                 <el-row :gutter="20" v-if="connectionStatus.isConnected">
                     <el-col :span="6">
-                        <el-statistic title="连接时间" :value="formatConnectionTime(connectionStatus.connectedTime)" />
+                        <el-statistic title="连接时间" :value="formatConnectionTime(connectionStatus.lastConnectedTime)" />
                     </el-col>
                     <el-col :span="6">
                         <el-statistic title="发送消息" :value="connectionStatus.sentCount || 0" />
                     </el-col>
                     <el-col :span="6">
-                        <el-statistic title="接收消息" :value="connectionStatus.receivedCount || 0" />
+                        <el-statistic title="接收消息" :value="connectionStatus.receiveCount || 0" />
                     </el-col>
                     <el-col :span="6">
                         <el-statistic title="错误次数" :value="connectionStatus.errorCount || 0" />
@@ -292,7 +292,7 @@
                     // 连接状态
                     connectionStatus: {
                         isConnected: false,
-                        connectedTime: null,
+                        LastConnectedTime: null,
                         sentCount: 0,
                         receivedCount: 0,
                         errorCount: 0
@@ -362,7 +362,7 @@
                 async loadConnectionStatus() {
                     try {
                         const response = await axios.get('/Config/GetPLCStatus');
-
+                        console.log(response);
                         if (response.data && response.data.success) {
                             this.connectionStatus = {
                                 ...this.connectionStatus,
@@ -471,6 +471,7 @@
 
                 // 格式化连接时间
                 formatConnectionTime(time) {
+                    console.log(time);
                     if (!time) return '未连接';
 
                     try {

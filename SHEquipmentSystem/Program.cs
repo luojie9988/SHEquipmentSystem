@@ -190,10 +190,19 @@ namespace SHEquipmentSystem
             // PLC数据提供器
             services.AddSingleton<PlcConnectionManager>();
             services.AddSingleton<PlcDataMapper>();
-            services.AddSingleton<PlcDataProviderImpl>();
-            services.AddSingleton<IPlcDataProvider>(provider => provider.GetService<PlcDataProviderImpl>()!);
+            //services.AddSingleton<PlcDataProviderImpl>();
+            //services.AddSingleton<IPlcDataProvider>(provider => provider.GetService<PlcDataProviderImpl>()!);
             //services.AddHostedService<PlcDataProviderImpl>();
+            // 方案1：直接注册PlcDataProviderImpl为单例
+            services.AddSingleton<PlcDataProviderImpl>();
 
+            // 通过工厂方法注册接口，确保返回同一个实例
+            services.AddSingleton<IPlcDataProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<PlcDataProviderImpl>());
+
+            // 通过工厂方法注册HostedService，确保返回同一个实例
+            services.AddSingleton<IHostedService>(serviceProvider =>
+                serviceProvider.GetRequiredService<PlcDataProviderImpl>());
             // SECS连接管理器
             services.AddSingleton<ISecsConnectionManager, SecsConnectionManager>();
 

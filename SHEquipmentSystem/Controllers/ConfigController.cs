@@ -1,5 +1,6 @@
 using DiceEquipmentSystem.Core.Configuration;
 using DiceEquipmentSystem.Core.Enums;
+using DiceEquipmentSystem.PLC.Interfaces;
 using DiceEquipmentSystem.Secs.Interfaces;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -18,12 +19,15 @@ namespace SHEquipmentSystem.Controllers
         private readonly ILogger<ConfigController> _logger;
         private readonly IConfiguration _configuration;
         private readonly ISecsConnectionManager _secsConnectionManager;
-
+        private readonly IPlcDataProvider _plcDataProvider;  // 注入PLC数据提供者
         public ConfigController(
             ILogger<ConfigController> logger,
             IConfiguration configuration,
-            ISecsConnectionManager secsConnectionManager)
+            ISecsConnectionManager secsConnectionManager,
+            IPlcDataProvider plcDataProvider)  // 添加PLC数据提供者注入)
         {
+            _plcDataProvider = plcDataProvider;
+            //var boolres=_plcDataProvider.ReadBoolAsync("M0").Result;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _secsConnectionManager = secsConnectionManager ?? throw new ArgumentNullException(nameof(secsConnectionManager));
@@ -656,25 +660,41 @@ namespace SHEquipmentSystem.Controllers
             try
             {
                 // 这里应该从实际的PLC连接管理器获取状态
-                // 目前返回模拟数据，实际使用时需要集成真实的PLC管理器
-
-                var status = new
+                var plcInfo = new
                 {
-                    success = true,
-                    data = new
-                    {
-                        isConnected = false, // 实际应从PLC管理器获取
-                        connectedTime = (DateTime?)null,
-                        sentCount = 0,
-                        receivedCount = 0,
-                        errorCount = 0,
-                        lastError = (string?)null,
-                        connectionQuality = 0.0,
-                        responseTime = 0.0
-                    }
+                    isConnected = _plcDataProvider.IsConnected,
+                    isSimulationMode = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl provider
+                        ? provider.IsSimulationMode : false,
+                    lastConnectedTime = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl
+                        ? impl.LastConnectedTime.ToString() : null,
+                    lastError = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl2
+                        ? impl2.LastError : null,
+                    connectionCount = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl3
+                        ? impl3.Statistics.ConnectionCount : 0,
+                    sentCount = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl4
+                        ? impl4.Statistics.SentCount : 0,
+                    receiveCount = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl5
+                        ? impl5.Statistics.ReceiveCount : 0,
+                    errorCount = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl6
+                        ? impl6.Statistics.ErrorCount : 0,
+                    //statistics = _plcDataProvider is SHEquipmentSystem.PLC.Services.PlcDataProviderImpl impl3
+                    //    ? new
+                    //    {
+                    //        connectionCount = impl3.Statistics.ConnectionCount,
+                    //        sentCount = impl3.Statistics.SentCount,
+                    //        receiveCount = impl3.Statistics.ReceiveCount,
+                    //        errorCount = impl3.Statistics.ErrorCount
+                    //    } : null
                 };
 
-                return Json(status);
+                //_logger.LogInformation($"获取PLC状态: 连接={plcInfo.isConnected}, 模拟模式={plcInfo.isSimulationMode}");
+
+                return Json(new
+                {
+                    success = true,
+                    data = plcInfo,
+                    message = "PLC状态获取成功"
+                });
             }
             catch (Exception ex)
             {
