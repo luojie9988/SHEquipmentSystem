@@ -914,7 +914,7 @@ namespace DiceEquipmentSystem.Services
             machine.OnTransitioned(transition =>
             {
                 _logger.LogInformation($"控制状态转换: {transition.Source} -> {transition.Destination} [{transition.Trigger}]");
-                RecordStateChange("ControlState", transition.Source, transition.Destination);
+                RecordStateChange("ControlState", transition.Source, transition.Destination, transition.Trigger);
                 OnStateChanged("ControlState", transition.Source, transition.Destination);
             });
 
@@ -957,7 +957,7 @@ namespace DiceEquipmentSystem.Services
             machine.OnTransitioned(transition =>
             {
                 _logger.LogInformation($"设备状态转换: {transition.Source} -> {transition.Destination} [{transition.Trigger}]");
-                RecordStateChange("EquipmentState", transition.Source, transition.Destination);
+                RecordStateChange("EquipmentState", transition.Source, transition.Destination, transition.Trigger);
                 OnStateChanged("EquipmentState", transition.Source, transition.Destination);
             });
 
@@ -971,7 +971,7 @@ namespace DiceEquipmentSystem.Services
         /// <summary>
         /// 记录状态变更
         /// </summary>
-        private void RecordStateChange(string stateType, object oldValue, object newValue)
+        private void RecordStateChange(string stateType, object oldValue, object newValue,object trigger)
         {
             var entry = new StateHistoryEntry
             {
@@ -979,7 +979,7 @@ namespace DiceEquipmentSystem.Services
                 StateType = stateType,
                 OldValue = oldValue?.ToString() ?? "null",
                 NewValue = newValue?.ToString() ?? "null",
-                Timestamp = DateTime.Now
+                Timestamp = DateTime.Now,Reason=trigger?.ToString()??"null"
             };
 
             _stateHistory.Enqueue(entry);

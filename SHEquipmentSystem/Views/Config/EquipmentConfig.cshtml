@@ -589,8 +589,8 @@
                     return () => {
                          console.log(this.deviceStatus.connectionStatus)
                         switch (this.deviceStatus.connectionStatus) {
-                            case 2: return 'connected';
-                            case 1: return 'connecting';
+                            case 3: return 'connected';
+                            case 2: return 'connecting';
                             default: return 'disconnected';
                         }
                     };

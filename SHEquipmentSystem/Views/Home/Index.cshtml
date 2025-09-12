@@ -17,7 +17,6 @@
     <script src="~/lib/axios/axios.min.js"></script>
     <script src="~/lib/element-plus/locale/zh-cn.min.js"></script>
 
-
     <!-- 自定义样式 -->
     <style>
         * {
@@ -82,129 +81,103 @@
             padding: 40px 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-            cursor: pointer;
             text-decoration: none;
             color: inherit;
-            position: relative;
-            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: block;
         }
-
-            .feature-card::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 4px;
-                background: linear-gradient(90deg, #667eea, #764ba2);
-                transform: scaleX(0);
-                transition: transform 0.3s ease;
-            }
-
-            .feature-card:hover::before {
-                transform: scaleX(1);
-            }
 
             .feature-card:hover {
                 transform: translateY(-10px);
                 box-shadow: 0 30px 80px rgba(0, 0, 0, 0.15);
+                text-decoration: none;
+                color: inherit;
             }
 
         .feature-icon {
-            font-size: 3.5rem;
-            margin-bottom: 25px;
+            font-size: 3rem;
+            margin-bottom: 20px;
             display: block;
         }
 
         .feature-title {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #2c3e50;
+            color: #2d3748;
             margin-bottom: 15px;
         }
 
         .feature-description {
             color: #718096;
             line-height: 1.6;
-            margin-bottom: 25px;
-            font-size: 1rem;
+            margin-bottom: 20px;
         }
 
-        .feature-stats {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
+        .feature-link {
+            color: #4299e1;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.3s ease;
         }
 
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #667eea;
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: #a0aec0;
-            margin-top: 5px;
-        }
+            .feature-link:hover {
+                color: #2b6cb0;
+            }
 
         .action-buttons {
-            margin-top: 50px;
             display: flex;
             gap: 20px;
             justify-content: center;
+            align-items: center;
+            margin-top: 50px;
             flex-wrap: wrap;
         }
 
         .cta-button {
-            padding: 15px 35px;
+            padding: 15px 30px;
             font-size: 1.1rem;
             font-weight: 600;
-            border-radius: 50px;
-            text-decoration: none;
-            transition: all 0.3s ease;
             border: none;
+            border-radius: 50px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            min-width: 180px;
+            min-width: 200px;
             justify-content: center;
         }
 
         .cta-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-        }
-
-            .cta-primary:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
-                color: white;
-                text-decoration: none;
-            }
-
-        .cta-secondary {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: 2px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
+        }
+
+            .cta-primary:hover {
+                background: rgba(255, 255, 255, 0.3);
+                border-color: rgba(255, 255, 255, 0.5);
+                transform: translateY(-2px);
+                text-decoration: none;
+                color: white;
+            }
+
+        .cta-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid white;
         }
 
             .cta-secondary:hover {
-                background: rgba(255, 255, 255, 0.3);
+                background: #f7fafc;
                 transform: translateY(-2px);
-                color: white;
                 text-decoration: none;
+                color: #667eea;
             }
 
         .floating-elements {
@@ -212,35 +185,31 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            z-index: 1;
+            pointer-events: none;
         }
 
         .floating-element {
             position: absolute;
+            width: 60px;
+            height: 60px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             animation: float 6s ease-in-out infinite;
         }
 
             .floating-element:nth-child(1) {
-                width: 80px;
-                height: 80px;
                 top: 20%;
                 left: 10%;
                 animation-delay: 0s;
             }
 
             .floating-element:nth-child(2) {
-                width: 120px;
-                height: 120px;
                 top: 60%;
                 right: 10%;
                 animation-delay: 2s;
             }
 
             .floating-element:nth-child(3) {
-                width: 60px;
-                height: 60px;
                 bottom: 20%;
                 left: 20%;
                 animation-delay: 4s;
@@ -251,10 +220,12 @@
 
         {
             transform: translateY(0px) rotate(0deg);
+            opacity: 0.7;
         }
 
         50% {
             transform: translateY(-20px) rotate(180deg);
+            opacity: 1;
         }
 
         }
@@ -385,100 +356,97 @@
         <!-- 主要内容区域 -->
         <section class="hero-section">
             <div class="hero-container">
-                <!-- 主标题区域 -->
-                <h1 class="hero-title">
-                    🏭 SH设备配置管理系统
-                </h1>
+                <!-- 主标题 -->
+                <h1 class="hero-title">🏭 SH设备配置管理系统</h1>
                 <p class="hero-subtitle">
-                    专业的工业设备配置管理平台，为半导体制造提供稳定可靠的PLC通信与SECS/GEM协议配置解决方案
+                    集成PLC通信、SECS/GEM协议和设备状态管理的全方位工业控制平台
                 </p>
 
-                <!-- 功能特性卡片 -->
-                <div class="feature-cards">
-                    <!-- PLC配置管理卡片 -->
-                    <a href="/Config/PLCConfig" class="feature-card">
-                        <span class="feature-icon" style="color: #4299e1;">🔌</span>
-                        <h3 class="feature-title">PLC通信配置</h3>
-                        <p class="feature-description">
-                            全面的PLC设备通信参数配置，包括连接设置、超时管理、数据块配置和实时状态监控
-                        </p>
-                        <div class="feature-stats">
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.plc.connections }}</span>
-                                <span class="stat-label">连接数</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.plc.dataBlocks }}</span>
-                                <span class="stat-label">数据块</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.plc.uptime }}%</span>
-                                <span class="stat-label">在线率</span>
-                            </div>
-                        </div>
+                <!-- 快速操作按钮 -->
+                <div class="action-buttons">
+                    <a href="/Config" class="cta-button cta-primary">
+                        <span>⚙️</span>
+                        配置管理
                     </a>
-
-                    <!-- 设备系统配置卡片 -->
-                    <a href="/Config/EquipmentConfig" class="feature-card">
-                        <span class="feature-icon" style="color: #48bb78;">⚙️</span>
-                        <h3 class="feature-title">设备系统配置</h3>
-                        <p class="feature-description">
-                            SECS/GEM协议参数配置，设备信息管理，SVID状态变量映射和分步骤配置向导
-                        </p>
-                        <div class="feature-stats">
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.equipment.devices }}</span>
-                                <span class="stat-label">设备数</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.equipment.mappings }}</span>
-                                <span class="stat-label">映射数</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.equipment.efficiency }}%</span>
-                                <span class="stat-label">效率</span>
-                            </div>
-                        </div>
-                    </a>
-
-                    <!-- 系统监控卡片 -->
-                    <a href="/Config" class="feature-card">
-                        <span class="feature-icon" style="color: #ed8936;">📊</span>
-                        <h3 class="feature-title">系统状态监控</h3>
-                        <p class="feature-description">
-                            实时系统状态监控，性能指标统计，通信质量分析和智能告警通知系统
-                        </p>
-                        <div class="feature-stats">
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.monitoring.alerts }}</span>
-                                <span class="stat-label">告警</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.monitoring.quality }}%</span>
-                                <span class="stat-label">通信质量</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-number">{{ systemStats.monitoring.performance }}%</span>
-                                <span class="stat-label">系统性能</span>
-                            </div>
-                        </div>
+                    <a href="/State" class="cta-button cta-secondary">
+                        <span>📊</span>
+                        状态监控
                     </a>
                 </div>
 
-                <!-- 操作按钮 -->
-                <div class="action-buttons">
-                    <a href="/Config" class="cta-button cta-primary">
-                        <span>🚀</span>
-                        开始配置
+                <!-- 功能卡片 -->
+                <div class="feature-cards">
+                    <!-- PLC配置卡片 -->
+                    <a href="/Config" class="feature-card">
+                        <span class="feature-icon">🔌</span>
+                        <h3 class="feature-title">PLC通信配置</h3>
+                        <p class="feature-description">
+                            配置PLC设备连接参数、超时设置和数据块管理，确保稳定的设备通信
+                        </p>
+                        <span class="feature-link">
+                            进入配置 →
+                        </span>
                     </a>
-                    <button v-on:click="showSystemInfo" class="cta-button cta-secondary">
-                        <span>📋</span>
-                        系统信息
-                    </button>
-                    <button v-on:click="toggleStatusBar" class="cta-button cta-secondary">
-                        <span>📈</span>
-                        {{ statusBarVisible ? '隐藏' : '显示' }}状态栏
-                    </button>
+
+                    <!-- 状态管理卡片（新增） -->
+                    <a href="/State" class="feature-card">
+                        <span class="feature-icon">📊</span>
+                        <h3 class="feature-title">多维状态管理</h3>
+                        <p class="feature-description">
+                            实时监控HSMS连接、控制状态、处理状态等六维状态，支持手动状态转换控制
+                        </p>
+                        <span class="feature-link">
+                            状态监控 →
+                        </span>
+                    </a>
+
+                    <!-- SECS/GEM协议卡片 -->
+                    <a href="/Config" class="feature-card">
+                        <span class="feature-icon">🌐</span>
+                        <h3 class="feature-title">SECS/GEM协议</h3>
+                        <p class="feature-description">
+                            符合SEMI标准的设备通信协议配置，支持事件报告、数据采集和远程控制
+                        </p>
+                        <span class="feature-link">
+                            协议配置 →
+                        </span>
+                    </a>
+
+                    <!-- 设备监控卡片 -->
+                    <a href="/State" class="feature-card">
+                        <span class="feature-icon">⚡</span>
+                        <h3 class="feature-title">实时设备监控</h3>
+                        <p class="feature-description">
+                            监控设备运行状态、连接统计、历史记录，提供系统健康状态一览
+                        </p>
+                        <span class="feature-link">
+                            实时监控 →
+                        </span>
+                    </a>
+
+                    <!-- 系统管理卡片 -->
+                    <a href="/Config" class="feature-card">
+                        <span class="feature-icon">🛠️</span>
+                        <h3 class="feature-title">系统管理</h3>
+                        <p class="feature-description">
+                            设备常数管理、工艺程序配置、日志记录和系统维护功能
+                        </p>
+                        <span class="feature-link">
+                            系统设置 →
+                        </span>
+                    </a>
+
+                    <!-- 数据分析卡片 -->
+                    <a href="/State" class="feature-card">
+                        <span class="feature-icon">📈</span>
+                        <h3 class="feature-title">数据分析</h3>
+                        <p class="feature-description">
+                            状态变更历史、连接统计分析、设备性能评估和趋势分析
+                        </p>
+                        <span class="feature-link">
+                            数据查看 →
+                        </span>
+                    </a>
                 </div>
             </div>
         </section>
@@ -488,192 +456,109 @@
             <div class="status-content">
                 <div class="system-info">
                     <div class="info-item">
-                        <div class="status-indicator" :class="getStatusClass('plc')"></div>
-                        <span>PLC: {{ systemStatus.plc ? '已连接' : '未连接' }}</span>
+                        <div class="status-indicator" :class="systemInfo.systemStatus"></div>
+                        <span>系统状态: {{ systemInfo.statusText }}</span>
                     </div>
                     <div class="info-item">
-                        <div class="status-indicator" :class="getStatusClass('equipment')"></div>
-                        <span>设备: {{ systemStatus.equipment ? '运行中' : '待机' }}</span>
+                        <div class="status-indicator" :class="systemInfo.plcStatus"></div>
+                        <span>PLC连接: {{ systemInfo.plcText }}</span>
                     </div>
                     <div class="info-item">
-                        <div class="status-indicator" :class="getStatusClass('system')"></div>
-                        <span>系统负载: {{ systemStatus.cpuUsage }}%</span>
+                        <div class="status-indicator" :class="systemInfo.secsStatus"></div>
+                        <span>SECS通信: {{ systemInfo.secsText }}</span>
                     </div>
                 </div>
-                <div style="font-size: 0.8rem; opacity: 0.8;">
-                    最后更新: {{ lastUpdateTime }}
+                <div>
+                    <span>{{ currentTime }}</span>
                 </div>
             </div>
         </div>
-
-        <!-- 系统信息对话框 -->
-        <el-dialog v-model="showSystemDialog"
-                   title="系统信息"
-                   width="600px"
-                   :center="true">
-            <div style="space-y: 20px;">
-                <el-descriptions :column="2" border>
-                    <el-descriptions-item label="系统版本">{{ systemInfo.version }}</el-descriptions-item>
-                    <el-descriptions-item label="运行时间">{{ systemInfo.uptime }}</el-descriptions-item>
-                    <el-descriptions-item label="ASP.NET Core">{{ systemInfo.aspNetVersion }}</el-descriptions-item>
-                    <el-descriptions-item label="操作系统">{{ systemInfo.os }}</el-descriptions-item>
-                    <el-descriptions-item label="服务器时间">{{ systemInfo.serverTime }}</el-descriptions-item>
-                    <el-descriptions-item label="时区">{{ systemInfo.timeZone }}</el-descriptions-item>
-                </el-descriptions>
-
-                <div style="margin-top: 30px;">
-                    <h4 style="margin-bottom: 15px; color: #303133;">系统模块状态</h4>
-                    <el-row :gutter="20">
-                        <el-col :span="8" v-for="module in systemModules" :key="module.name">
-                            <el-card shadow="hover" style="text-align: center;">
-                                <div style="font-size: 2rem; margin-bottom: 10px;">{{ module.icon }}</div>
-                                <div style="font-weight: 600; margin-bottom: 5px;">{{ module.name }}</div>
-                                <el-tag :type="module.status === 'running' ? 'success' : 'danger'" size="small">
-                                    {{ module.status === 'running' ? '运行中' : '已停止' }}
-                                </el-tag>
-                            </el-card>
-                        </el-col>
-                    </el-row>
-                </div>
-            </div>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button v-on:click="refreshSystemInfo" type="primary">刷新信息</el-button>
-                    <el-button v-on:click="showSystemDialog = false">关闭</el-button>
-                </span>
-            </template>
-        </el-dialog>
     </div>
 
-    <!-- 加载Vue.js和Element Plus -->
+    <script type="module">
+        const { createApp } = Vue;
+        const { ElNotification } = ElementPlus;
 
-
-    <script>
-        // 检查依赖加载
-        if (typeof Vue === 'undefined') {
-            alert('Vue.js加载失败，请检查网络连接');
-        } else if (typeof ElementPlus === 'undefined') {
-            alert('ElementPlus加载失败，请检查网络连接');
-        } else {
-            // 初始化应用
-            const { createApp } = Vue;
-            const { ElMessage, ElNotification } = ElementPlus;
-
+        if (window.Vue && window.ElementPlus) {
             const app = createApp({
                 data() {
                     return {
+                        currentTime: '',
                         statusBarVisible: false,
-                        showSystemDialog: false,
-                        systemStats: {
-                            plc: {
-                                connections: 12,
-                                dataBlocks: 45,
-                                uptime: 98.5
-                            },
-                            equipment: {
-                                devices: 8,
-                                mappings: 156,
-                                efficiency: 94.2
-                            },
-                            monitoring: {
-                                alerts: 3,
-                                quality: 95.8,
-                                performance: 87.3
-                            }
-                        },
-                        systemStatus: {
-                            plc: true,
-                            equipment: true,
-                            cpuUsage: 35
-                        },
                         systemInfo: {
-                            version: '1.0.0',
-                            uptime: '7天 12小时 45分钟',
-                            aspNetVersion: '.NET 8.0',
-                            os: 'Windows Server 2022',
+                            systemStatus: '',
+                            statusText: '运行中',
+                            plcStatus: '',
+                            plcText: '已连接',
+                            secsStatus: '',
+                            secsText: '通信正常',
                             serverTime: '',
-                            timeZone: 'GMT+8 (中国标准时间)'
-                        },
-                        systemModules: [
-                            { name: 'PLC通信', icon: '🔌', status: 'running' },
-                            { name: 'SECS/GEM', icon: '⚙️', status: 'running' },
-                            { name: '数据采集', icon: '📊', status: 'running' },
-                            { name: '告警服务', icon: '🚨', status: 'running' },
-                            { name: '日志记录', icon: '📝', status: 'running' },
-                            { name: '配置管理', icon: '🔧', status: 'running' }
-                        ],
-                        lastUpdateTime: ''
-                    }
+                            activeConnections: 0,
+                            totalMessages: 0
+                        }
+                    };
                 },
+
                 methods: {
-                    toggleStatusBar() {
-                        this.statusBarVisible = !this.statusBarVisible;
-
-                        if (this.statusBarVisible) {
-                            ElMessage.success('状态栏已显示');
-                        } else {
-                            ElMessage.info('状态栏已隐藏');
-                        }
-                    },
-
-                    showSystemInfo() {
-                        this.refreshSystemInfo();
-                        this.showSystemDialog = true;
-                    },
-
-                    refreshSystemInfo() {
-                        // 更新服务器时间
-                        this.systemInfo.serverTime = new Date().toLocaleString();
-
-                        // 模拟随机更新一些统计数据
-                        this.systemStats.plc.uptime = (98 + Math.random() * 2).toFixed(1);
-                        this.systemStats.equipment.efficiency = (93 + Math.random() * 5).toFixed(1);
-                        this.systemStats.monitoring.quality = (94 + Math.random() * 4).toFixed(1);
-                        this.systemStats.monitoring.performance = (85 + Math.random() * 10).toFixed(1);
-
-                        // 更新系统状态
-                        this.systemStatus.cpuUsage = Math.floor(30 + Math.random() * 20);
-
-                        ElMessage.success('系统信息已刷新');
-                    },
-
-                    getStatusClass(type) {
-                        switch (type) {
-                            case 'plc':
-                                return this.systemStatus.plc ? '' : 'error';
-                            case 'equipment':
-                                return this.systemStatus.equipment ? '' : 'warning';
-                            case 'system':
-                                if (this.systemStatus.cpuUsage > 80) return 'error';
-                                if (this.systemStatus.cpuUsage > 60) return 'warning';
-                                return '';
-                            default:
-                                return '';
-                        }
-                    },
-
                     updateTime() {
-                        this.lastUpdateTime = new Date().toLocaleTimeString();
+                        const now = new Date();
+                        this.currentTime = now.toLocaleString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
                     },
 
                     simulateSystemActivity() {
-                        // 随机模拟系统状态变化
-                        if (Math.random() < 0.1) {
-                            this.systemStatus.plc = Math.random() > 0.2;
+                        // 模拟系统活动和状态变化
+                        const statuses = ['', 'warning', 'error'];
+                        const statusTexts = ['运行中', '维护中', '故障'];
+                        const plcTexts = ['已连接', '连接中', '已断开'];
+                        const secsTexts = ['通信正常', '通信中', '通信异常'];
+
+                        // 大部分时间保持正常状态
+                        const randomValue = Math.random();
+                        if (randomValue > 0.8) {
+                            const statusIndex = Math.floor(Math.random() * statuses.length);
+                            this.systemInfo.systemStatus = statuses[statusIndex];
+                            this.systemInfo.statusText = statusTexts[statusIndex];
+                            this.systemInfo.plcStatus = statuses[statusIndex];
+                            this.systemInfo.plcText = plcTexts[statusIndex];
+                            this.systemInfo.secsStatus = statuses[statusIndex];
+                            this.systemInfo.secsText = secsTexts[statusIndex];
+                        } else {
+                            // 恢复正常状态
+                            this.systemInfo.systemStatus = '';
+                            this.systemInfo.statusText = '运行中';
+                            this.systemInfo.plcStatus = '';
+                            this.systemInfo.plcText = '已连接';
+                            this.systemInfo.secsStatus = '';
+                            this.systemInfo.secsText = '通信正常';
                         }
 
-                        if (Math.random() < 0.05) {
-                            this.systemStatus.equipment = Math.random() > 0.1;
-                        }
+                        // 模拟活动数据
+                        this.systemInfo.activeConnections = Math.floor(Math.random() * 5) + 1;
+                        this.systemInfo.totalMessages = this.systemInfo.totalMessages + Math.floor(Math.random() * 10);
+                    },
 
-                        // 模拟CPU使用率变化
-                        this.systemStatus.cpuUsage += (Math.random() - 0.5) * 10;
-                        this.systemStatus.cpuUsage = Math.max(10, Math.min(90, this.systemStatus.cpuUsage));
-                        this.systemStatus.cpuUsage = Math.floor(this.systemStatus.cpuUsage);
+                    goToPage(path) {
+                        window.location.href = path;
+                    },
 
-                        // 模拟告警数量变化
-                        if (Math.random() < 0.03) {
-                            this.systemStats.monitoring.alerts = Math.max(0, this.systemStats.monitoring.alerts + (Math.random() > 0.5 ? 1 : -1));
+                    navigateToFeature(feature) {
+                        const routes = {
+                            'config': '/Config',
+                            'state': '/State',
+                            'monitoring': '/State',
+                            'analysis': '/State'
+                        };
+
+                        const route = routes[feature];
+                        if (route) {
+                            this.goToPage(route);
                         }
                     }
                 },
@@ -701,9 +586,9 @@
                             this.statusBarVisible = true;
                             ElNotification({
                                 title: '欢迎使用',
-                                message: 'SH设备配置管理系统已启动，状态栏已显示',
+                                message: 'SH设备配置管理系统已启动，点击"状态监控"查看实时状态',
                                 type: 'success',
-                                duration: 3000
+                                duration: 4000
                             });
                         }
                     }, 5000);

@@ -286,7 +286,24 @@ namespace DiceEquipmentSystem.Secs.Communication
             _hsmsConnection!.ConnectionChanged += (sender, state) =>
             {
                 if (state ==ConnectionState.Selected) _connectionCount++;
-                UpdateConnectionState((HsmsConnectionState)state);
+                switch (state)
+                {
+                    case ConnectionState.Connecting:
+                        UpdateConnectionState(HsmsConnectionState.Connecting);
+                        break;
+                    case ConnectionState.Connected:
+                        UpdateConnectionState(HsmsConnectionState.Connected);
+                        break;
+                    case ConnectionState.Selected:
+                        UpdateConnectionState(HsmsConnectionState.Selected);
+                        break;
+                    case ConnectionState.Retry:
+                        UpdateConnectionState(HsmsConnectionState.Retry);
+                        break;
+                    default:
+                        break;
+                }
+                
             };
         }
 

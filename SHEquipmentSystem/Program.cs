@@ -170,6 +170,7 @@ namespace SHEquipmentSystem
             services.AddSingleton<IStatusVariableService, StatusVariableService>();
             services.AddSingleton<IEventReportService, EventReportService>();
             services.AddSingleton<IAlarmService, AlarmServiceImpl>();
+            //services.AddSingleton<EqpMultiStateManager>();
 
             // 注册生产服务（Phase 1新增）
             services.AddSingleton<IProductionService, ProductionService>();
@@ -193,13 +194,12 @@ namespace SHEquipmentSystem
             //services.AddSingleton<PlcDataProviderImpl>();
             //services.AddSingleton<IPlcDataProvider>(provider => provider.GetService<PlcDataProviderImpl>()!);
             //services.AddHostedService<PlcDataProviderImpl>();
-            // 方案1：直接注册PlcDataProviderImpl为单例
+            //直接注册PlcDataProviderImpl为单例
             services.AddSingleton<PlcDataProviderImpl>();
 
             // 通过工厂方法注册接口，确保返回同一个实例
             services.AddSingleton<IPlcDataProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<PlcDataProviderImpl>());
-
             // 通过工厂方法注册HostedService，确保返回同一个实例
             services.AddSingleton<IHostedService>(serviceProvider =>
                 serviceProvider.GetRequiredService<PlcDataProviderImpl>());

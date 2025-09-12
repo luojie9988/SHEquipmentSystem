@@ -1,5 +1,682 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿@{
+    Layout = null; // 不使用布局文件
 }
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设备状态管理 - SH设备系统</title>
+
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="~/lib/element-plus/index.css">
+
+    <!-- JavaScript 依赖 -->
+    <script src="~/lib/vue/vue.global.js"></script>
+    <script src="~/lib/element-plus/index.full.js"></script>
+    <script src="~/lib/element-plus-icons-vue/index.iife.min.js"></script>
+    <script src="~/lib/axios/axios.min.js"></script>
+    <script src="~/lib/element-plus/locale/zh-cn.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+            .header h1 {
+                font-size: 24px;
+                font-weight: 600;
+                margin: 0;
+            }
+
+        .main-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .state-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .state-connected {
+            background: #67c23a;
+        }
+
+        .state-disconnected {
+            background: #f56c6c;
+        }
+
+        .state-warning {
+            background: #e6a23c;
+        }
+
+        .state-processing {
+            background: #409eff;
+        }
+
+        .state-standby {
+            background: #909399;
+        }
+
+        .control-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-section {
+            margin: 30px 0;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .history-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .auto-refresh-info {
+            color: #909399;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="stateApp">
+        <!-- 页面头部 -->
+        <div class="header">
+            <h1>
+                <el-icon><Monitor /></el-icon>
+                设备多维状态管理系统
+            </h1>
+        </div>
+
+        <!-- 主要内容 -->
+        <div class="main-container">
+            <!-- 实时状态显示区 -->
+            <div class="status-grid">
+                <!-- HSMS连接状态 -->
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; align-items: center;">
+                            <el-icon><Connection /></el-icon>
+                            <span style="margin-left: 8px;">HSMS连接状态</span>
+                        </div>
+                    </template>
+                    <div>
+                        <p style="font-size: 16px; margin-bottom: 10px;">
+                            <span :class="getStateIndicatorClass(currentState.connectionState?.current)"></span>
+                            {{ currentState.connectionState?.current || 'Unknown' }}
+                        </p>
+                        <p style="color: #606266; font-size: 14px;">
+                            {{ currentState.connectionState?.description || '' }}
+                        </p>
+                        <el-tag :type="currentState.connectionState?.isConnected ? 'success' : 'danger'" size="small" style="margin-top: 10px;">
+                            {{ currentState.connectionState?.isConnected ? '通信已建立' : '通信未建立' }}
+                        </el-tag>
+                    </div>
+                </el-card>
+
+                <!-- 控制状态 -->
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; align-items: center;">
+                            <el-icon><Switch /></el-icon>
+                            <span style="margin-left: 8px;">控制状态</span>
+                        </div>
+                    </template>
+                    <div>
+                        <p style="font-size: 16px; margin-bottom: 10px;">
+                            <span :class="getStateIndicatorClass(currentState.controlState?.current)"></span>
+                            {{ currentState.controlState?.current || 'Unknown' }}
+                        </p>
+                        <p style="color: #606266; font-size: 14px;">
+                            {{ currentState.controlState?.description || '' }}
+                        </p>
+                        <div style="margin-top: 10px;">
+                            <el-tag :type="currentState.ControlState?.IsOnline ? 'success' : 'info'" size="small">
+                                {{ currentState.controlState?.isOnline ? '在线' : '离线' }}
+                            </el-tag>
+                            <el-tag :type="currentState.ControlState?.IsRemoteEnabled ? 'warning' : 'info'" size="small" style="margin-left: 5px;">
+                                {{ currentState.controlState?.mode || 'Unknown' }}
+                            </el-tag>
+                        </div>
+
+                        <!-- 控制操作按钮 -->
+                        <div class="control-buttons">
+                            <el-button size="small" type="primary" v-on:click ="changeControlState('goonlinelocal')" :disabled="loading">
+                                本地在线
+                            </el-button>
+                            <el-button size="small" type="success" v-on:click ="changeControlState('goonlineremote')" :disabled="loading">
+                                远程在线
+                            </el-button>
+                            <el-button size="small" type="warning" v-on:click ="changeControlState('gooffline')" :disabled="loading">
+                                离线
+                            </el-button>
+                        </div>
+                    </div>
+                </el-card>
+
+                <!-- 处理状态 -->
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; align-items: center;">
+                            <el-icon><Operation /></el-icon>
+                            <span style="margin-left: 8px;">处理状态</span>
+                        </div>
+                    </template>
+                    <div>
+                        <p style="font-size: 16px; margin-bottom: 10px;">
+                            <span :class="getStateIndicatorClass(currentState.processState?.current)"></span>
+                            {{ currentState.processState?.current || 'Unknown' }}
+                        </p>
+                        <p style="color: #606266; font-size: 14px;">
+                            {{ currentState.processState?.description || '' }}
+                        </p>
+                        <el-tag :type="currentState.processState?.isProcessing ? 'warning' : 'success'" size="small" style="margin-top: 10px;">
+                            {{ currentState.processState?.isProcessing ? '处理中' : '空闲' }}
+                        </el-tag>
+
+                        <!-- 处理控制按钮 -->
+                        <div class="control-buttons">
+                            <el-button size="small" type="success" v-on:click ="changeProcessState('start')" :disabled="loading">
+                                开始
+                            </el-button>
+                            <el-button size="small" type="warning" v-on:click ="changeProcessState('pause')" :disabled="loading">
+                                暂停
+                            </el-button>
+                            <el-button size="small" type="info" v-on:click ="changeProcessState('stop')" :disabled="loading">
+                                停止
+                            </el-button>
+                            <el-button size="small" type="danger" v-on:click ="changeProcessState('abort')" :disabled="loading">
+                                中止
+                            </el-button>
+                            <el-button size="small" type="primary" v-on:click ="changeProcessState('reset')" :disabled="loading">
+                                重置
+                            </el-button>
+                        </div>
+                    </div>
+                </el-card>
+
+                <!-- 设备状态 -->
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; align-items: center;">
+                            <el-icon><Tools /></el-icon>
+                            <span style="margin-left: 8px;">设备状态</span>
+                        </div>
+                    </template>
+                    <div>
+                        <p style="font-size: 16px; margin-bottom: 10px;">
+                            <span :class="getStateIndicatorClass(currentState.EquipmentState?.Current)"></span>
+                            {{ currentState.equipmentState?.current || 'Unknown' }}
+                        </p>
+                        <p style="color: #606266; font-size: 14px;">
+                            {{ currentState.equipmentState?.description || '' }}
+                        </p>
+                    </div>
+                </el-card>
+            </div>
+
+            <!-- 系统服务状态 -->
+            <div class="action-section">
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>
+                                <el-icon><Setting /></el-icon>
+                                系统服务状态
+                            </span>
+                            <el-button size="small" v-on:click ="refreshSystemStatus" :loading="loading">
+                                <el-icon><Refresh /></el-icon>
+                                刷新
+                            </el-button>
+                        </div>
+                    </template>
+                    <div>
+                        <div class="stats-row">
+                            <div>
+                                <h4>服务状态</h4>
+                                <el-tag :type="getServiceStatusType(systemStatus.services?.stateService)" size="small">
+                                    设备状态服务: {{ systemStatus.services?.stateService || 'Unknown' }}
+                                </el-tag>
+                                <el-tag :type="getServiceStatusType(systemStatus.services?.secsConnectionManager)" size="small" style="margin-left: 5px;">
+                                    SECS连接管理器: {{ systemStatus.services?.secsConnectionManager || 'Unknown' }}
+                                </el-tag>
+                                <el-tag :type="getServiceStatusType(systemStatus.services?.plcDataProvider)" size="small" style="margin-left: 5px;">
+                                    PLC数据提供者: {{ systemStatus.services?.plcDataProvider || 'Unknown' }}
+                                </el-tag>
+                            </div>
+                            <div>
+                                <h4>连接状态</h4>
+                                <el-tag :type="systemStatus.plcConnection ? 'success' : 'danger'" size="small">
+                                    PLC连接: {{ systemStatus.plcConnection ? '已连接' : '未连接' }}
+                                </el-tag>
+                                <el-tag :type="systemStatus.secsConnection ? 'success' : 'danger'" size="small" style="margin-left: 5px;">
+                                    SECS连接: {{ systemStatus.secsConnection ? '已连接' : '未连接' }}
+                                </el-tag>
+                            </div>
+                            <div>
+                                <h4>运行模式</h4>
+                                <el-tag :type="getModeType(systemStatus.mode)" size="large">
+                                    {{ systemStatus.mode || 'Unknown' }}
+                                </el-tag>
+                            </div>
+                        </div>
+                    </div>
+                </el-card>
+            </div>
+
+            <!-- 连接控制和统计信息 -->
+            <div class="action-section">
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>
+                                <el-icon><DataAnalysis /></el-icon>
+                                连接控制与统计
+                            </span>
+                            <div>
+                                <el-button size="small" type="success" v-on:click ="simulateConnection('connect')" :disabled="loading || currentState.ConnectionState?.IsConnected">
+                                    <el-icon><Link /></el-icon>
+                                    模拟连接
+                                </el-button>
+                                <el-button size="small" type="danger" v-on:click ="simulateConnection('disconnect')" :disabled="loading || !currentState.ConnectionState?.IsConnected" style="margin-left: 5px;">
+                                    <el-icon><Unlink /></el-icon>
+                                    断开连接
+                                </el-button>
+                                <el-button size="small" v-on:click ="refreshStatistics" :loading="loading" style="margin-left: 10px;">
+                                    <el-icon><Refresh /></el-icon>
+                                    刷新
+                                </el-button>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="stats-row">
+                        <el-statistic title="连接次数" :value="statistics.connectionCount || 0" />
+                        <el-statistic title="已发送消息" :value="statistics.messagesSent || 0" />
+                        <el-statistic title="已接收消息" :value="statistics.messagesReceived || 0" />
+                        <el-statistic title="最后连接时间" :value="statistics.lastConnectedTime || 'N/A'" />
+                        <el-statistic title="运行时间" :value="statistics.uptime || 'N/A'" />
+                    </div>
+                </el-card>
+            </div>
+
+            <!-- 状态历史记录 -->
+            <div class="action-section">
+                <el-card shadow="hover">
+                    <template #header>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>
+                                <el-icon><Clock /></el-icon>
+                                状态变更历史 (最近50条)
+                            </span>
+                            <el-button size="small" v-on:click ="refreshHistory" :loading="loading">
+                                <el-icon><Refresh /></el-icon>
+                                刷新历史
+                            </el-button>
+                        </div>
+                    </template>
+                    <el-table height="100%" :data="stateHistory" border style="width: 100%">
+                        <el-table-column type="index"  width="80" label="编号">  </el-table-column>
+                        <el-table-column prop="timestamp" label="时间" min-width="20%"> </el-table-column>
+                        <el-table-column prop="stateType" label="状态类型" min-width="20%"> </el-table-column>
+                        <el-table-column prop="fromState" label="原状态" min-width="20%"> </el-table-column>
+                        <el-table-column prop="toState" label="新状态" min-width="20%"> </el-table-column>
+                        <el-table-column prop="trigger" label="触发器" min-width="20%"> </el-table-column>
+                    </el-table>
+                </el-card>
+            </div>
+
+            <!-- 系统信息和使用说明 -->
+            <div class="auto-refresh-info">
+                <el-alert title="系统说明"
+                          type="info"
+                          :description="getSystemDescription()"
+                          show-icon
+                          :closable="false"
+                          style="margin-bottom: 15px;">
+                </el-alert>
+                <p>
+                    <el-icon><InfoFilled /></el-icon>
+                    页面每5秒自动刷新状态 | 最后更新: {{ currentState.lastUpdate || 'N/A' }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        const stateApp = createApp({
+            data() {
+                return {
+                    currentState: {},
+                    stateHistory: [],
+                    statistics: {},
+                    systemStatus: {},
+                    loading: false,
+                    autoRefreshTimer: null
+                };
+            },
+
+            mounted() {
+                this.initializeApp();
+            },
+
+            beforeUnmount() {
+                if (this.autoRefreshTimer) {
+                    clearInterval(this.autoRefreshTimer);
+                }
+            },
+
+            methods: {
+                async initializeApp() {
+                    await this.loadCurrentState();
+                    await this.loadStateHistory();
+                    await this.loadStatistics();
+                    await this.loadSystemStatus();
+                    this.startAutoRefresh();
+                },
+
+                async loadCurrentState() {
+                    try {
+                        const response = await axios.get('/State/GetCurrentState');
+                        if (response.data.success) {
+                            this.currentState = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('加载当前状态失败:', error);
+                        ElMessage.error('加载当前状态失败');
+                    }
+                },
+
+                async loadStateHistory() {
+                    try {
+                        const response = await axios.get('/State/GetStateHistory');
+                        if (response.data.success) {
+                            this.stateHistory = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('加载状态历史失败:', error);
+                        ElMessage.error('加载状态历史失败');
+                    }
+                },
+
+                async loadStatistics() {
+                    try {
+                        const response = await axios.get('/State/GetConnectionStatistics');
+                        console.log(response);
+                        if (response.data.success) {
+                            this.statistics = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('加载统计信息失败:', error);
+                        ElMessage.error('加载统计信息失败');
+                    }
+                },
+
+                async loadSystemStatus() {
+                    try {
+                        const response = await axios.get('/State/GetSystemStatus');
+                        console.log(response);
+                        if (response.data.success) {
+                            this.systemStatus = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('加载系统状态失败:', error);
+                        ElMessage.error('加载系统状态失败');
+                    }
+                },
+
+                async changeControlState(action) {
+                    try {
+                        const confirmed = await ElMessageBox.confirm(
+                            `确定要执行 "${this.getActionName(action)}" 操作吗？`,
+                            '确认操作',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning'
+                            }
+                        );
+
+                        this.loading = true;
+                        const response = await axios.post('/State/ChangeControlState', {
+                            action: action
+                        });
+
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.loadCurrentState();
+                            await this.loadStateHistory();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error.message !== 'cancel') {
+                            console.error('状态变更失败:', error);
+                            ElMessage.error('状态变更失败');
+                        }
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async changeProcessState(action) {
+                    try {
+                        const confirmed = await ElMessageBox.confirm(
+                            `确定要执行 "${this.getActionName(action)}" 操作吗？`,
+                            '确认操作',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning'
+                            }
+                        );
+
+                        this.loading = true;
+                        const response = await axios.post('/State/ChangeProcessState', {
+                            action: action
+                        });
+
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.loadCurrentState();
+                            await this.loadStateHistory();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error.message !== 'cancel') {
+                            console.error('处理状态变更失败:', error);
+                            ElMessage.error('处理状态变更失败');
+                        }
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async simulateConnection(action) {
+                    try {
+                        const actionName = action === 'connect' ? '连接' : '断开连接';
+                        const confirmed = await ElMessageBox.confirm(
+                            `确定要模拟 "${actionName}" 操作吗？`,
+                            '模拟操作',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'info'
+                            }
+                        );
+
+                        this.loading = true;
+                        const response = await axios.post('/State/SimulateConnection', {
+                            action: action
+                        });
+
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.loadCurrentState();
+                            await this.loadStateHistory();
+                            await this.loadStatistics();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error.message !== 'cancel') {
+                            console.error('模拟连接操作失败:', error);
+                            ElMessage.error('模拟连接操作失败');
+                        }
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async refreshHistory() {
+                    this.loading = true;
+                    try {
+                        await this.loadStateHistory();
+                        ElMessage.success('状态历史已刷新');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async refreshStatistics() {
+                    this.loading = true;
+                    try {
+                        await this.loadStatistics();
+                        ElMessage.success('统计信息已刷新');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async refreshSystemStatus() {
+                    this.loading = true;
+                    try {
+                        await this.loadSystemStatus();
+                        ElMessage.success('系统状态已刷新');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                getServiceStatusType(status) {
+                    return status === 'Available' ? 'success' : 'danger';
+                },
+
+                getModeType(mode) {
+                    if (mode && mode.includes('Production')) {
+                        return 'success';
+                    } else if (mode && mode.includes('Simulation')) {
+                        return 'warning';
+                    }
+                    return 'info';
+                },
+
+                startAutoRefresh() {
+                    this.autoRefreshTimer = setInterval(async () => {
+                        await this.loadCurrentState();
+                    }, 5000); // 每5秒刷新一次
+                },
+
+                getActionName(action) {
+                    const names = {
+                        'goonlinelocal': '本地在线',
+                        'goonlineremote': '远程在线',
+                        'gooffline': '离线',
+                        'switchtolocal': '切换到本地',
+                        'switchtoremote': '切换到远程',
+                        'start': '开始处理',
+                        'pause': '暂停处理',
+                        'resume': '恢复处理',
+                        'stop': '停止处理',
+                        'abort': '中止处理',
+                        'reset': '重置状态'
+                    };
+                    return names[action] || action;
+                },
+
+                getStateIndicatorClass(state) {
+                    if (!state) return 'state-indicator state-disconnected';
+
+                    const connectedStates = ['Selected', 'Connected', 'OnlineLocal', 'OnlineRemote'];
+                    const processingStates = ['Executing', 'Pausing', 'Stopping', 'Aborting'];
+                    const warningStates = ['Connecting', 'AttemptOnline', 'Paused'];
+
+                    if (connectedStates.includes(state)) {
+                        return 'state-indicator state-connected';
+                    } else if (processingStates.includes(state)) {
+                        return 'state-indicator state-processing';
+                    } else if (warningStates.includes(state)) {
+                        return 'state-indicator state-warning';
+                    } else {
+                        return 'state-indicator state-standby';
+                    }
+                },
+
+                getSystemDescription() {
+                    const mode = this.systemStatus.mode || '';
+                    if (mode.includes('Production')) {
+                        return '当前运行在生产模式，使用真实的设备服务。可以进行实际的状态控制和监控操作。';
+                    } else if (mode.includes('Simulation')) {
+                        return '当前运行在模拟模式，使用模拟数据。首先点击"模拟连接"建立HSMS连接，然后可以切换控制状态进行测试。';
+                    }
+                    return '正在检测系统模式...';
+                }
+            }
+        });
+
+        // 使用Element Plus
+        stateApp.use(ElementPlus, {
+            locale: ElementPlusLocaleZhCn
+        });
+
+        // 注册图标
+        for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+            stateApp.component(key, component);
+        }
+
+        stateApp.mount('#stateApp');
+    </script>
+</body>
+</html>
