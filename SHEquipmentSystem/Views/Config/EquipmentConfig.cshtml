@@ -422,13 +422,6 @@
                                :disabled="!deviceStatus.isConnected">
                         停止连接
                     </el-button>
-                    <el-button type="primary"
-                               size="large"
-                               :icon="Connection"
-                               v-on:click="testConnection"
-                               :loading="loading.test">
-                        测试连接
-                    </el-button>
                     <el-button type="warning"
                                size="large"
                                :icon="Check"
@@ -463,7 +456,7 @@
                         <el-statistic title="连接次数" :value="statistics.connectionCount || 0" />
                     </el-col>
                     <el-col :span="6">
-                        <el-statistic title="运行时间" :value="getUptime()" suffix="小时" />
+                        <el-statistic title="运行时间" :value="getUptime()"  />
                     </el-col>
                 </el-row>
             </div>
@@ -715,24 +708,6 @@
                     }
                 },
 
-                // 测试连接
-                async testConnection() {
-                    this.loading.test = true;
-                    try {
-                        const response = await axios.post('/Config/TestConnection', this.equipmentConfig);
-                        if (response.data.success) {
-                            ElMessage.success(`连接测试成功 (响应时间: ${response.data.data.responseTime}ms)`);
-                            this.addLog('info', `连接测试成功，响应时间: ${response.data.data.responseTime}ms`);
-                        } else {
-                            throw new Error(response.data.message);
-                        }
-                    } catch (error) {
-                        ElMessage.error('连接测试失败: ' + error.message);
-                        this.addLog('error', '连接测试失败: ' + error.message);
-                    } finally {
-                        this.loading.test = false;
-                    }
-                },
 
                 // 验证配置
                 async validateConfig() {
@@ -806,8 +781,21 @@
                 // 获取运行时间
                 getUptime() {
                     if (!this.deviceStatus.lastConnectedTime || !this.deviceStatus.isConnected) return 0;
-                    const uptime = (Date.now() - new Date(this.deviceStatus.lastConnectedTime)) / (1000 * 60 * 60);
-                    return Math.round(uptime * 100) / 100;
+                      try {
+                         const diff = Date.now() - new Date(this.deviceStatus.lastConnectedTime) ;
+                        const seconds = Math.floor(diff / 1000);
+                        const minutes = Math.floor(seconds / 60);
+                        const hours = Math.floor(minutes / 60);
+                        if (hours > 0) {
+                            return `${hours}小时${minutes % 60}分钟`;
+                        } else if (minutes > 0) {
+                            return `${minutes}分钟`;
+                        } else {
+                            return `${seconds}秒`;
+                        }
+                    } catch {
+                        return '未知';
+                    }
                 },
 
                 // 添加日志
@@ -856,13 +844,11 @@
 
             async mounted() {
                 // 注册Element Plus图标
-                Object.keys(icons).forEach(key => {
-                    this.app.component(key, icons[key]);
-                });
-
+                // Object.keys(icons).forEach(key => {
+                //     this.app.component(key, icons[key]);
+                // });
                 await this.init();
             },
-
             beforeUnmount() {
                 this.stopStatusPolling();
             }

@@ -8,6 +8,7 @@ using DiceEquipmentSystem.Secs.Handlers;
 using DiceEquipmentSystem.Secs.Interfaces;
 using DiceEquipmentSystem.Services;
 using DiceEquipmentSystem.Services.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 using SHEquipmentSystem.PLC.Services;
@@ -128,7 +129,7 @@ namespace SHEquipmentSystem
             try
             {
                 logger.LogInformation("初始化设备状态...");
-
+                await stateService.CompleteProcessInitializationAsync();
                 // 初始化默认SVID
                 InitializeDefaultSvids(svidService, logger);
 

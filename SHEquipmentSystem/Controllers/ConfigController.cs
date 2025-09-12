@@ -119,10 +119,9 @@ namespace SHEquipmentSystem.Controllers
                         isConnected = _secsConnectionManager.IsConnected,
                         connectionStatistics = _secsConnectionManager.GetConnectionStatistics(),
                         lastConnectedTime = _secsConnectionManager.LastConnectedTime,
-                        //lastDisconnectedTime = _secsConnectionManager.LastDisconnectedTime
-                        //    connectionStatistics = _secsConnectionManager.GetConnectionStatistics(),
-                        //    activeSession = _secsConnectionManager.GetActiveSession(),
-                        //    lastError = _secsConnectionManager.GetLastError()
+                        //lastDisconnectedTime = _secsConnectionManager.LastDisconnectedTime,
+                        //activeSession = _secsConnectionManager.GetActiveSession(),
+                        //lastError = _secsConnectionManager.GetLastError()
                     }
                 };
 
@@ -271,46 +270,6 @@ namespace SHEquipmentSystem.Controllers
                 {
                     success = false,
                     message = "验证配置失败: " + ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 测试连接参数
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> TestConnection([FromBody] EquipmentSystemConfiguration config)
-        {
-            try
-            {
-                _logger.LogInformation("测试连接参数");
-
-                //var result = await _secsConnectionManager.TestConnectionAsync(config);
-
-                //return Json(new
-                //{
-                //    success = result.Success,
-                //    message = result.Success ? "连接测试成功" : $"连接测试失败: {result.ErrorMessage}",
-                //    data = new
-                //    {
-                //        responseTime = result.ResponseTime,
-                //        testTime = DateTime.Now,
-                //        details = result.Details
-                //    }
-                //});
-                return Json(new
-                {
-                    success = true,
-                    message = "测试连接成功"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "测试连接失败");
-                return Json(new
-                {
-                    success = false,
-                    message = "测试连接失败: " + ex.Message
                 });
             }
         }

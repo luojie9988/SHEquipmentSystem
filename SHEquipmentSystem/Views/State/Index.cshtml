@@ -273,28 +273,40 @@
                         <div class="stats-row">
                             <div>
                                 <h4>服务状态</h4>
-                                <el-tag :type="getServiceStatusType(systemStatus.services?.stateService)" size="small">
-                                    设备状态服务: {{ systemStatus.services?.stateService || 'Unknown' }}
-                                </el-tag>
-                                <el-tag :type="getServiceStatusType(systemStatus.services?.secsConnectionManager)" size="small" style="margin-left: 5px;">
-                                    SECS连接管理器: {{ systemStatus.services?.secsConnectionManager || 'Unknown' }}
-                                </el-tag>
-                                <el-tag :type="getServiceStatusType(systemStatus.services?.plcDataProvider)" size="small" style="margin-left: 5px;">
-                                    PLC数据提供者: {{ systemStatus.services?.plcDataProvider || 'Unknown' }}
-                                </el-tag>
+                                <div style="margin-top: 5px;">
+                                    <el-tag :type="getServiceStatusType(systemStatus.services?.stateService)" size="small">
+                                        设备状态服务: {{ systemStatus.services?.stateService || 'Unknown' }}
+                                    </el-tag>
+                                </div>
+                                <div style ="margin-top: 5px;">
+                                    <el-tag :type="getServiceStatusType(systemStatus.services?.secsConnectionManager)" size="small" style="margin-top: 5px;">
+                                        SECS连接管理器: {{ systemStatus.services?.secsConnectionManager || 'Unknown' }}
+                                    </el-tag>
+                                </div>
+                                <div style="margin-top: 5px;">
+                                    <el-tag :type="getServiceStatusType(systemStatus.services?.plcDataProvider)" size="small" style="margin-top: 5px;">
+                                        PLC数据提供者: {{ systemStatus.services?.plcDataProvider || 'Unknown' }}
+                                    </el-tag>
+                                </div>
+                                
                             </div>
                             <div>
                                 <h4>连接状态</h4>
-                                <el-tag :type="systemStatus.plcConnection ? 'success' : 'danger'" size="small">
-                                    PLC连接: {{ systemStatus.plcConnection ? '已连接' : '未连接' }}
-                                </el-tag>
-                                <el-tag :type="systemStatus.secsConnection ? 'success' : 'danger'" size="small" style="margin-left: 5px;">
-                                    SECS连接: {{ systemStatus.secsConnection ? '已连接' : '未连接' }}
-                                </el-tag>
+                                <div style="margin-top: 5px;">
+                                    <el-tag :type="systemStatus.plcConnection ? 'success' : 'danger'" size="small">
+                                        PLC连接: {{ systemStatus.plcConnection ? '已连接' : '未连接' }}
+                                    </el-tag>
+                                </div>
+                                <div style="margin-top: 5px;">
+                                    <el-tag :type="systemStatus.secsConnection ? 'success' : 'danger'" size="small" style="margin-top: 5px;">
+                                        SECS连接: {{ systemStatus.secsConnection ? '已连接' : '未连接' }}
+                                    </el-tag>
+                                </div>
+                                
                             </div>
                             <div>
                                 <h4>运行模式</h4>
-                                <el-tag :type="getModeType(systemStatus.mode)" size="large">
+                                <el-tag :type="getModeType(systemStatus.mode)" style=" margin-top: 5px;"  size="large">
                                     {{ systemStatus.mode || 'Unknown' }}
                                 </el-tag>
                             </div>
@@ -329,11 +341,11 @@
                         </div>
                     </template>
                     <div class="stats-row">
-                        <el-statistic title="连接次数" :value="statistics.connectionCount || 0" />
-                        <el-statistic title="已发送消息" :value="statistics.messagesSent || 0" />
-                        <el-statistic title="已接收消息" :value="statistics.messagesReceived || 0" />
-                        <el-statistic title="最后连接时间" :value="statistics.lastConnectedTime || 'N/A'" />
-                        <el-statistic title="运行时间" :value="statistics.uptime || 'N/A'" />
+                        <el-statistic title="连接次数" :value="statistics.connectionCount || 0"></el-statistic>
+                        <el-statistic title="已发送消息" :value="statistics.messagesSent || 0"></el-statistic>
+                        <el-statistic title="已接收消息" :value="statistics.messagesReceived || 0"></el-statistic>
+                        <el-statistic title="最后连接时间" :value="statistics.lastConnectedTime || 'N/A'"></el-statistic>
+                        <el-statistic title="运行时间" :value="statistics.uptime || 'N/A'"></el-statistic>
                     </div>
                 </el-card>
             </div>
@@ -371,7 +383,7 @@
                           :description="getSystemDescription()"
                           show-icon
                           :closable="false"
-                          style="margin-bottom: 15px;">
+                          style="margin-bottom: 15px; align-items: center;display: flex;justify-content: center;">
                 </el-alert>
                 <p>
                     <el-icon><InfoFilled /></el-icon>
@@ -616,6 +628,7 @@
                 startAutoRefresh() {
                     this.autoRefreshTimer = setInterval(async () => {
                         await this.loadCurrentState();
+                        await this.loadStatistics();
                     }, 5000); // 每5秒刷新一次
                 },
 
