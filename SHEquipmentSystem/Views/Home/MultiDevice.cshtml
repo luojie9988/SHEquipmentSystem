@@ -1,0 +1,476 @@
+@{
+    ViewData["Title"] = "多设备管理";
+}
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <script src="~/lib/vue/vue.global.prod.js"></script>
+    <script src="~/lib/element-plus/index.full.js"></script>
+    <script src="~/lib/axios/axios.min.js"></script>
+    <link rel="stylesheet" href="~/lib/element-plus/index.css">
+    <style>
+        .device-card {
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #67c23a; }
+        .status-stopped { background-color: #909399; }
+        .status-error { background-color: #f56c6c; }
+        .system-overview {
+            margin-bottom: 30px;
+        }
+        .connection-status {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="multiDeviceApp">
+        <el-container>
+            <el-header style="background-color: #409EFF; color: white; padding: 20px;">
+                <h1>多设备管理系统</h1>
+            </el-header>
+            
+            <el-main>
+                <!-- 系统概览 -->
+                <div class="system-overview">
+                    <el-card>
+                        <template #header>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>系统概览</span>
+                                <el-button type="primary" size="small" v-on:click="refreshOverview">
+                                    <el-icon><refresh /></el-icon>
+                                    刷新
+                                </el-button>
+                            </div>
+                        </template>
+                        
+                        <el-row :gutter="20" v-if="overview">
+                            <el-col :span="6">
+                                <el-statistic title="设备总数" :value="overview.Devices?.Total || 0" />
+                            </el-col>
+                            <el-col :span="6">
+                                <el-statistic title="运行中" :value="overview.Devices?.Running || 0" />
+                            </el-col>
+                            <el-col :span="6">
+                                <el-statistic title="已停止" :value="overview.Devices?.Stopped || 0" />
+                            </el-col>
+                            <el-col :span="6">
+                                <el-statistic title="错误" :value="overview.Devices?.Error || 0" />
+                            </el-col>
+                        </el-row>
+                    </el-card>
+                </div>
+
+                <!-- 连接状态 -->
+                <div class="connection-status">
+                    <el-row :gutter="20">
+                        <el-col :span="12">
+                            <el-card header="SECS连接状态">
+                                <div v-if="secsStatus">
+                                    <p>总连接数: {{ secsStatus.TotalConnections }}</p>
+                                    <p>在线连接: {{ secsStatus.OnlineConnections }}</p>
+                                    <p>离线连接: {{ secsStatus.OfflineConnections }}</p>
+                                </div>
+                            </el-card>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-card header="PLC连接状态">
+                                <div v-if="plcStatus">
+                                    <p>总连接数: {{ plcStatus.TotalConnections }}</p>
+                                    <p>已连接: {{ plcStatus.ConnectedConnections }}</p>
+                                    <p>未连接: {{ plcStatus.DisconnectedConnections }}</p>
+                                </div>
+                            </el-card>
+                        </el-col>
+                    </el-row>
+                </div>
+
+                <!-- 设备列表 -->
+                <el-card>
+                    <template #header>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>设备列表</span>
+                            <div>
+                                <el-button type="success" size="small" v-on:click="startAllDevices">
+                                    启动全部
+                                </el-button>
+                                <el-button type="warning" size="small" v-on:click="stopAllDevices">
+                                    停止全部
+                                </el-button>
+                                <el-button type="primary" size="small" v-on:click="refreshDevices">
+                                    刷新列表
+                                </el-button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <el-table :data="devices" stripe style="width: 100%">
+                        <el-table-column prop="DeviceId" label="设备ID" width="120" />
+                        <el-table-column prop="DeviceName" label="设备名称" width="150" />
+                        <el-table-column prop="ModelName" label="型号" width="120" />
+                        
+                        <el-table-column label="状态" width="100">
+                            <template #default="scope">
+                                <span class="status-indicator" :class="getStatusClass(scope.row.State)"></span>
+                                {{ scope.row.State }}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="SECS" width="80">
+                            <template #default="scope">
+                                <el-tag :type="scope.row.SecsConnected ? 'success' : 'danger'" size="small">
+                                    {{ scope.row.SecsConnected ? '已连接' : '未连接' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="PLC" width="80">
+                            <template #default="scope">
+                                <el-tag :type="scope.row.PlcConnected ? 'success' : 'danger'" size="small">
+                                    {{ scope.row.PlcConnected ? '已连接' : '未连接' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="LastUpdateTime" label="最后更新" width="180">
+                            <template #default="scope">
+                                {{ formatTime(scope.row.LastUpdateTime) }}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="错误信息" show-overflow-tooltip>
+                            <template #default="scope">
+                                <span v-if="scope.row.ErrorMessage" style="color: red;">
+                                    {{ scope.row.ErrorMessage }}
+                                </span>
+                                <span v-else style="color: green;">正常</span>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="操作" width="200" fixed="right">
+                            <template #default="scope">
+                                <el-button-group>
+                                    <el-button 
+                                        type="success" 
+                                        size="small" 
+                                        v-on:click="startDevice(scope.row.DeviceId)"
+                                        :disabled="scope.row.State === 'Running'">
+                                        启动
+                                    </el-button>
+                                    <el-button 
+                                        type="warning" 
+                                        size="small" 
+                                        v-on:click="stopDevice(scope.row.DeviceId)"
+                                        :disabled="scope.row.State === 'Stopped'">
+                                        停止
+                                    </el-button>
+                                    <el-button 
+                                        type="primary" 
+                                        size="small" 
+                                        v-on:click="restartDevice(scope.row.DeviceId)">
+                                        重启
+                                    </el-button>
+                                    <el-button 
+                                        type="info" 
+                                        size="small" 
+                                        v-on:click="showDeviceDetails(scope.row.DeviceId)">
+                                        详情
+                                    </el-button>
+                                </el-button-group>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-card>
+
+                <!-- 设备详情对话框 -->
+                <el-dialog v-model="detailDialogVisible" title="设备详情" width="60%">
+                    <div v-if="selectedDeviceDetails">
+                        <el-descriptions :column="2" border>
+                            <el-descriptions-item label="设备ID">
+                                {{ selectedDeviceDetails.DeviceId }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="设备名称">
+                                {{ selectedDeviceDetails.DeviceName }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="控制状态">
+                                {{ selectedDeviceDetails.ControlState }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="控制模式">
+                                {{ selectedDeviceDetails.ControlMode }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="SECS连接">
+                                <el-tag :type="selectedDeviceDetails.SecsConnected ? 'success' : 'danger'">
+                                    {{ selectedDeviceDetails.SecsConnected ? '已连接' : '未连接' }}
+                                </el-tag>
+                            </el-descriptions-item>
+                            <el-descriptions-item label="PLC连接">
+                                <el-tag :type="selectedDeviceDetails.PlcConnected ? 'success' : 'danger'">
+                                    {{ selectedDeviceDetails.PlcConnected ? '已连接' : '未连接' }}
+                                </el-tag>
+                            </el-descriptions-item>
+                            <el-descriptions-item label="运行时长">
+                                {{ selectedDeviceDetails.Uptime }}
+                            </el-descriptions-item>
+                        </el-descriptions>
+
+                        <div style="margin-top: 20px;" v-if="selectedDeviceDetails.Statistics">
+                            <h4>统计信息</h4>
+                            <el-row :gutter="20">
+                                <el-col :span="8">
+                                    <el-statistic title="SECS消息数" :value="selectedDeviceDetails.Statistics.SecsMessageCount || 0" />
+                                </el-col>
+                                <el-col :span="8">
+                                    <el-statistic title="PLC交互数" :value="selectedDeviceDetails.Statistics.PlcInteractionCount || 0" />
+                                </el-col>
+                                <el-col :span="8">
+                                    <el-statistic title="错误次数" :value="selectedDeviceDetails.Statistics.ErrorCount || 0" />
+                                </el-col>
+                            </el-row>
+                        </div>
+                    </div>
+                </el-dialog>
+            </el-main>
+        </el-container>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    overview: null,
+                    devices: [],
+                    secsStatus: null,
+                    plcStatus: null,
+                    detailDialogVisible: false,
+                    selectedDeviceDetails: null,
+                    refreshTimer: null
+                };
+            },
+            async mounted() {
+                await this.loadData();
+                this.startAutoRefresh();
+            },
+            beforeUnmount() {
+                if (this.refreshTimer) {
+                    clearInterval(this.refreshTimer);
+                }
+            },
+            methods: {
+                async loadData() {
+                    await Promise.all([
+                        this.refreshOverview(),
+                        this.refreshDevices(),
+                        this.refreshConnectionStatus()
+                    ]);
+                },
+
+                async refreshOverview() {
+                    try {
+                        const response = await axios.get('/api/MultiDevice/overview');
+                        if (response.data.success) {
+                            this.overview = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('获取系统概览失败:', error);
+                        ElMessage.error('获取系统概览失败');
+                    }
+                },
+
+                async refreshDevices() {
+                    try {
+                        const response = await axios.get('/api/MultiDevice/devices');
+                        if (response.data.success) {
+                            this.devices = response.data.data;
+                        }
+                    } catch (error) {
+                        console.error('获取设备列表失败:', error);
+                        ElMessage.error('获取设备列表失败');
+                    }
+                },
+
+                async refreshConnectionStatus() {
+                    try {
+                        const [secsResponse, plcResponse] = await Promise.all([
+                            axios.get('/api/MultiDevice/connections/secs'),
+                            axios.get('/api/MultiDevice/connections/plc')
+                        ]);
+
+                        if (secsResponse.data.success) {
+                            this.secsStatus = secsResponse.data.data;
+                        }
+                        if (plcResponse.data.success) {
+                            this.plcStatus = plcResponse.data.data;
+                        }
+                    } catch (error) {
+                        console.error('获取连接状态失败:', error);
+                    }
+                },
+
+                async startDevice(deviceId) {
+                    try {
+                        const response = await axios.post(`/api/MultiDevice/devices/${deviceId}/start`);
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.refreshDevices();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        console.error('启动设备失败:', error);
+                        ElMessage.error('启动设备失败');
+                    }
+                },
+
+                async stopDevice(deviceId) {
+                    try {
+                        const response = await axios.post(`/api/MultiDevice/devices/${deviceId}/stop`);
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.refreshDevices();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        console.error('停止设备失败:', error);
+                        ElMessage.error('停止设备失败');
+                    }
+                },
+
+                async restartDevice(deviceId) {
+                    try {
+                        await ElMessageBox.confirm('确定要重启此设备吗？', '确认操作', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const response = await axios.post(`/api/MultiDevice/devices/${deviceId}/restart`);
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.refreshDevices();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('重启设备失败:', error);
+                            ElMessage.error('重启设备失败');
+                        }
+                    }
+                },
+
+                async startAllDevices() {
+                    try {
+                        await ElMessageBox.confirm('确定要启动所有设备吗？', '确认操作', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const deviceIds = this.devices.map(d => d.DeviceId);
+                        const response = await axios.post('/api/MultiDevice/devices/batch-operation', {
+                            DeviceIds: deviceIds,
+                            Action: 'start',
+                            Parallel: true
+                        });
+
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.refreshDevices();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('批量启动失败:', error);
+                            ElMessage.error('批量启动失败');
+                        }
+                    }
+                },
+
+                async stopAllDevices() {
+                    try {
+                        await ElMessageBox.confirm('确定要停止所有设备吗？', '确认操作', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const deviceIds = this.devices.map(d => d.DeviceId);
+                        const response = await axios.post('/api/MultiDevice/devices/batch-operation', {
+                            DeviceIds: deviceIds,
+                            Action: 'stop',
+                            Parallel: true
+                        });
+
+                        if (response.data.success) {
+                            ElMessage.success(response.data.message);
+                            await this.refreshDevices();
+                        } else {
+                            ElMessage.error(response.data.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('批量停止失败:', error);
+                            ElMessage.error('批量停止失败');
+                        }
+                    }
+                },
+
+                async showDeviceDetails(deviceId) {
+                    try {
+                        const response = await axios.get(`/api/MultiDevice/devices/${deviceId}`);
+                        if (response.data.success) {
+                            this.selectedDeviceDetails = response.data.data;
+                            this.detailDialogVisible = true;
+                        } else {
+                            ElMessage.error('获取设备详情失败');
+                        }
+                    } catch (error) {
+                        console.error('获取设备详情失败:', error);
+                        ElMessage.error('获取设备详情失败');
+                    }
+                },
+
+                getStatusClass(state) {
+                    switch (state) {
+                        case 'Running':
+                            return 'status-running';
+                        case 'Stopped':
+                            return 'status-stopped';
+                        case 'Error':
+                            return 'status-error';
+                        default:
+                            return 'status-stopped';
+                    }
+                },
+
+                formatTime(timeString) {
+                    if (!timeString) return '';
+                    return new Date(timeString).toLocaleString('zh-CN');
+                },
+
+                startAutoRefresh() {
+                    this.refreshTimer = setInterval(async () => {
+                        await this.loadData();
+                    }, 5000); // 每5秒刷新一次
+                }
+            }
+        }).use(ElementPlus).mount('#multiDeviceApp');
+    </script>
+</body>
+</html>

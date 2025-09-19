@@ -8,7 +8,9 @@ using DiceEquipmentSystem.Secs.Handlers;
 using DiceEquipmentSystem.Secs.Interfaces;
 using DiceEquipmentSystem.Services;
 using DiceEquipmentSystem.Services.Interfaces;
+using DiceEquipmentSystem.Core.Managers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using SHEquipmentSystem.PLC.Services;
@@ -19,23 +21,23 @@ namespace SHEquipmentSystem
     {
         public static async Task Main(string[] args)
         {
-            // ÅäÖÃSerilogÈÕÖ¾
+            // é…ç½®Serilogæ—¥å¿—
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()  // Ä¬ÈÏĞÅÏ¢¼¶±ğ
+                .MinimumLevel.Information()  // é»˜è®¤ä¿¡æ¯çº§åˆ«
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("System", LogEventLevel.Warning)
-                // ¿ØÖÆÌ¨Êä³ö - ¼ò½à¸ñÊ½
+                // æ§åˆ¶å°è¾“å‡º - æ–‡æœ¬æ ¼å¼
                 .WriteTo.Console(
                     outputTemplate: "[{Timestamp:HH:mm:ss}] [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                     restrictedToMinimumLevel: LogEventLevel.Information)
-                // Ö÷ÈÕÖ¾ÎÄ¼ş - ĞÅÏ¢¼¶±ğ
+                // æ—¥å¿—æ–‡ä»¶ - ä¿¡æ¯çº§åˆ«
                 .WriteTo.File(
                     path: @"..\..\logs\Equipment\equipment-info-.log",
                     rollingInterval: RollingInterval.Day,
                     outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss}] [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}",
                     restrictedToMinimumLevel: LogEventLevel.Information,
-                    retainedFileCountLimit: 7)  // ±£Áô7Ìì
-                                                // SECSÍ¨ĞÅÈÕÖ¾ - ×¨ÃÅ¼ÇÂ¼SECSÏûÏ¢
+                    retainedFileCountLimit: 7)  // ä¿ç•™7å¤©
+                                                // SECSé€šä¿¡æ—¥å¿— - è®°å½•SECSä¿¡æ¯
                 .WriteTo.Logger(lc => lc
                     .Filter.ByIncludingOnly(e => e.Properties.ContainsKey("SourceContext") &&
                         e.Properties["SourceContext"].ToString().Contains("Secs"))
@@ -44,18 +46,18 @@ namespace SHEquipmentSystem
                         rollingInterval: RollingInterval.Day,
                         outputTemplate: "[{Timestamp:HH:mm:ss.fff}] {Message:lj}{NewLine}",
                         retainedFileCountLimit: 3))
-                // ´íÎóÈÕÖ¾ - µ¥¶ÀÎÄ¼ş
+                // é”™è¯¯æ—¥å¿— - æ–‡ä»¶
                 .WriteTo.File(
                     path: @"..\..\logs\Equipment\equipment-error-.log",
                     rollingInterval: RollingInterval.Day,
                     outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}",
                     restrictedToMinimumLevel: LogEventLevel.Error,
-                    retainedFileCountLimit: 30)  // ´íÎóÈÕÖ¾±£Áô30Ìì
+                    retainedFileCountLimit: 30)  // é”™è¯¯æ—¥å¿—ä¿ç•™30å¤©
                 .CreateLogger();
             try
             {
                 Log.Information("==========================================");
-                Log.Information("»®ÁÑÆ¬Éè±¸SECS/GEMÏµÍ³Æô¶¯");
+                Log.Information("æ™¶åœ†è®¾å¤‡SECS/GEMç³»ç»Ÿå¯åŠ¨");
                 Log.Information("==========================================");
             }
             catch (Exception)
@@ -66,32 +68,60 @@ namespace SHEquipmentSystem
             var builder = WebApplication.CreateBuilder(args);
             builder.Host.UseSerilog();
 
-            // ÅäÖÃÏµÍ³ÉèÖÃ
-            builder.Services.Configure<EquipmentSystemConfiguration>(
-                builder.Configuration.GetSection("EquipmentSystem"));
-            // ÅäÖÃJSONĞòÁĞ»¯Ñ¡Ïî
+            // æ£€æŸ¥æ˜¯å¦å¯ç”¨å¤šè®¾å¤‡æ¨¡å¼
+            var useMultiDevice = builder.Configuration.GetValue("UseMultiDevice", false);
+
+            if (useMultiDevice)
+            {
+                // å¤šè®¾å¤‡æ¨¡å¼é…ç½®
+                builder.Services.Configure<MultiEquipmentSystemConfiguration>(
+                    builder.Configuration.GetSection("MultiEquipmentSystem"));
+                
+                Log.Information("å¯ç”¨å¤šè®¾å¤‡æ¨¡å¼");
+                RegisterMultiDeviceServices(builder.Services);
+            }
+            else
+            {
+                // å•è®¾å¤‡æ¨¡å¼é…ç½®ï¼ˆå‘åå…¼å®¹ï¼‰
+                builder.Services.Configure<EquipmentSystemConfiguration>(
+                    builder.Configuration.GetSection("EquipmentSystem"));
+                
+                Log.Information("å¯ç”¨å•è®¾å¤‡æ¨¡å¼ï¼ˆå‘åå…¼å®¹ï¼‰");
+                RegisterSingleDeviceServices(builder.Services);
+            }
+
+            // é…ç½®JSONåºåˆ—åŒ–é€‰é¡¹
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
                 options.SerializerOptions.PropertyNamingPolicy = null;
                 options.SerializerOptions.WriteIndented = true;
+            });// é…ç½®åå°ä½¿ç”¨ Windows æœåŠ¡
+            builder.Host.UseWindowsService(options =>
+            {
+                // é…ç½®æœåŠ¡åç§°ï¼Œä»¥ä¾¿åœ¨WindowsæœåŠ¡ç®¡ç†å™¨ä¸­æ˜¾ç¤º
+                options.ServiceName = "My WebAPI Service";
             });
-            // ×¢²áºËĞÄ·şÎñ
+            // æ³¨å†Œæ ¸å¿ƒæœåŠ¡
             RegisterCoreServices(builder.Services);
 
-            // ×¢²áSECS·şÎñ
+            // æ³¨å†ŒSECSæœåŠ¡
             RegisterSecsServices(builder.Services);
 
-            // ×¢²áÏûÏ¢´¦ÀíÆ÷
+            // æ³¨å†Œæ¶ˆæ¯å¤„ç†å™¨
             RegisterMessageHandlers(builder.Services);
 
-            // ×¢²áºóÌ¨·şÎñ
+            // æ³¨å†Œåå°æœåŠ¡
             builder.Services.AddHostedService<EquipmentBackgroundService>();
             // Add services to the container.
             builder.Services.AddControllersWithViews();
-            // Ìí¼ÓÄÚ´æ»º´æ
+            // é…ç½®å†…å­˜ç¼“å­˜
             builder.Services.AddMemoryCache();
 
-
+            // é…ç½®KestrelæœåŠ¡å™¨ä»¥ä½¿ç”¨æŒ‡å®šç«¯å£
+            builder.WebHost.ConfigureKestrel(serverOptions =>
+            {
+                serverOptions.ListenAnyIP(5001); // æ›¿æ¢ä¸º5000æˆ–å…¶ä»–ç«¯å£å·ï¼Œä¾‹å¦‚5001
+            });
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -103,7 +133,7 @@ namespace SHEquipmentSystem
             app.UseStaticFiles();
 
             app.UseRouting();
-            // ÆôÓÃCORS£¨ÈçÅäÖÃ£©
+            // é…ç½®CORSç­–ç•¥
             app.UseCors("AllowLocalhost");
             //app.UseSession();
             app.UseAuthorization();
@@ -111,13 +141,14 @@ namespace SHEquipmentSystem
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
-            // Æô¶¯Éè±¸ÏµÍ³
+            // å¯åŠ¨è®¾å¤‡ç³»ç»Ÿ
             await StartEquipmentSystem(app);
-            app.Run();
+            await app.RunAsync();
+            //app.host.RunAsService();
         }
 
         /// <summary>
-        /// Æô¶¯Éè±¸ÏµÍ³
+        /// å¯åŠ¨è®¾å¤‡ç³»ç»Ÿ
         /// </summary>
         private static async Task StartEquipmentSystem(IHost host)
         {
@@ -128,55 +159,55 @@ namespace SHEquipmentSystem
 
             try
             {
-                logger.LogInformation("³õÊ¼»¯Éè±¸×´Ì¬...");
+                logger.LogInformation("å¯åŠ¨è®¾å¤‡çŠ¶æ€...");
                 await stateService.CompleteProcessInitializationAsync();
-                // ³õÊ¼»¯Ä¬ÈÏSVID
+                // å¯åŠ¨é»˜è®¤SVID
                 InitializeDefaultSvids(svidService, logger);
 
-                // Æô¶¯SECSÁ¬½Ó£¨PassiveÄ£Ê½£¬µÈ´ıHostÁ¬½Ó£©
-                logger.LogInformation("Æô¶¯SECSÍ¨ĞÅ·şÎñ...");
+                // å¯åŠ¨SECSé€šä¿¡ï¼ŒPassiveæ¨¡å¼ï¼Œç­‰å¾…Hostè¿æ¥
+                logger.LogInformation("å¯åŠ¨SECSé€šä¿¡...");
                 await connectionManager.StartAsync();
 
-                logger.LogInformation("Éè±¸ÏµÍ³Æô¶¯Íê³É£¬µÈ´ıÖ÷»úÁ¬½Ó...");
+                logger.LogInformation("è®¾å¤‡ç³»ç»Ÿå¯åŠ¨å®Œæˆï¼Œç­‰å¾…è¿æ¥...");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Éè±¸ÏµÍ³Æô¶¯Ê§°Ü");
+                logger.LogError(ex, "è®¾å¤‡ç³»ç»Ÿå¯åŠ¨å¤±è´¥");
                 throw;
             }
         }
         /// <summary>
-        /// ³õÊ¼»¯Ä¬ÈÏ×´Ì¬±äÁ¿
+        /// å¯åŠ¨é»˜è®¤çŠ¶æ€å˜é‡
         /// </summary>
         private static void InitializeDefaultSvids(IStatusVariableService svidService, Microsoft.Extensions.Logging.ILogger logger)
         {
-            logger.LogDebug("³õÊ¼»¯Ä¬ÈÏ×´Ì¬±äÁ¿...");
+            logger.LogDebug("å¯åŠ¨é»˜è®¤çŠ¶æ€å˜é‡...");
 
-            // ÕâĞ©SVIDÒÑÔÚStatusVariableService¹¹Ôìº¯ÊıÖĞ³õÊ¼»¯
-            // ÕâÀï¿ÉÒÔÌí¼Ó¶îÍâµÄ³õÊ¼»¯Âß¼­
+            // é€šè¿‡StatusVariableServiceæ„é€ å‡½æ•°å¯åŠ¨ä¸€äº›SVID
+            // æ ¹æ®éœ€è¦æ·»åŠ æ›´å¤šçš„åˆå§‹å€¼
         }
         /// <summary>
-        /// ×¢²áºËĞÄ·şÎñ
+        /// æ³¨å†Œæ ¸å¿ƒæœåŠ¡
         /// </summary>
         private static void RegisterCoreServices(IServiceCollection services)
         {
-            // ×¢²áÉè±¸Êı¾İÄ£ĞÍ£¨µ¥Àı£¬È«¾Ö¹²Ïí£©
+            // æ³¨å†Œè®¾å¤‡æ•°æ®æ¨¡å‹ï¼Œå…¨å±€å”¯ä¸€å®ä¾‹
             services.AddSingleton<DiceEquipmentSystem.Core.Models.DiceDataModel>();
 
-            // ×´Ì¬»ú
+            // çŠ¶æ€æœº
             services.AddSingleton<ProcessStateMachine>();
 
-            // Éè±¸·şÎñ
+            // è®¾å¤‡çŠ¶æ€
             services.AddSingleton<IEquipmentStateService, EquipmentStateService>();
             services.AddSingleton<IStatusVariableService, StatusVariableService>();
             services.AddSingleton<IEventReportService, EventReportService>();
             services.AddSingleton<IAlarmService, AlarmServiceImpl>();
             //services.AddSingleton<EqpMultiStateManager>();
 
-            // ×¢²áÉú²ú·şÎñ£¨Phase 1ĞÂÔö£©
+            // æ³¨å†Œç”Ÿäº§æœåŠ¡ï¼ˆPhase 1ï¼‰
             services.AddSingleton<IProductionService, ProductionService>();
 
-            // ×¢²áSECS/GEM³õÊ¼»¯¹ÜÀíÆ÷
+            // æ³¨å†ŒSECS/GEMåˆå§‹åŒ–æœåŠ¡
             services.AddSingleton<DiceEquipmentSystem.Secs.Initialization.ISecsGemInitializationManager,
                                  DiceEquipmentSystem.Secs.Initialization.SecsGemInitializationManager>();
 
@@ -185,53 +216,53 @@ namespace SHEquipmentSystem
         }
 
         /// <summary>
-        /// ×¢²áSECSÍ¨ĞÅ·şÎñ
+        /// æ³¨å†ŒSECSé€šä¿¡
         /// </summary>
         private static void RegisterSecsServices(IServiceCollection services)
         {
-            // PLCÊı¾İÌá¹©Æ÷
+            // PLCæ•°æ®æä¾›æœåŠ¡
             services.AddSingleton<PlcConnectionManager>();
             services.AddSingleton<PlcDataMapper>();
             //services.AddSingleton<PlcDataProviderImpl>();
             //services.AddSingleton<IPlcDataProvider>(provider => provider.GetService<PlcDataProviderImpl>()!);
             //services.AddHostedService<PlcDataProviderImpl>();
-            //Ö±½Ó×¢²áPlcDataProviderImplÎªµ¥Àı
+            //ç›´æ¥æ³¨å†ŒPlcDataProviderImplä¸ºæœåŠ¡
             services.AddSingleton<PlcDataProviderImpl>();
 
-            // Í¨¹ı¹¤³§·½·¨×¢²á½Ó¿Ú£¬È·±£·µ»ØÍ¬Ò»¸öÊµÀı
+            // é€šè¿‡æœåŠ¡æä¾›è€…æ³¨å†Œæ¥å£ï¼Œç¡®ä¿åŒä¸€å®ä¾‹
             services.AddSingleton<IPlcDataProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<PlcDataProviderImpl>());
-            // Í¨¹ı¹¤³§·½·¨×¢²áHostedService£¬È·±£·µ»ØÍ¬Ò»¸öÊµÀı
+            // é€šè¿‡æœåŠ¡æä¾›è€…æ³¨å†ŒHostedServiceï¼Œç¡®ä¿åŒä¸€å®ä¾‹
             services.AddSingleton<IHostedService>(serviceProvider =>
                 serviceProvider.GetRequiredService<PlcDataProviderImpl>());
-            // SECSÁ¬½Ó¹ÜÀíÆ÷
+            // SECSé€šä¿¡ç®¡ç†å™¨
             services.AddSingleton<ISecsConnectionManager, SecsConnectionManager>();
 
-            // ÏûÏ¢·Ö·¢Æ÷
+            // æ¶ˆæ¯åˆ†å‘å™¨
             services.AddSingleton<ISecsMessageDispatcher, SecsMessageDispatcher>();
 
-            // Ìí¼ÓÊı¾İ²É¼¯·şÎñ
+            // æ•°æ®é‡‡é›†æœåŠ¡
             services.AddSingleton<IDataCollectionService, DataCollectionService>();
 
         }
 
         /// <summary>
-        /// ×¢²áËùÓĞÏûÏ¢´¦ÀíÆ÷
+        /// æ³¨å†Œæ¶ˆæ¯å¤„ç†å™¨
         /// </summary>
         private static void RegisterMessageHandlers(IServiceCollection services)
         {
-            // Stream 1 - Éè±¸×´Ì¬ºÍÍ¨ĞÅ
+            // Stream 1 - è®¾å¤‡çŠ¶æ€é€šä¿¡
             services.AddTransient<S1F1Handler>();
             services.AddTransient<S1F2Handler>();
             services.AddTransient<S1F3Handler>();
             services.AddTransient<S1F11Handler>();
-            // S1F13HandlerÊ¹ÓÃµ¥ÀıÒÔ±£³ÖÍ¨ĞÅ½¨Á¢×´Ì¬
+            // S1F13Handlerä½¿ç”¨å•ä¾‹æ¨¡å¼å¤„ç†çŠ¶æ€
             services.AddSingleton<S1F13Handler>();
             services.AddSingleton<IS1F13Handler>(provider => provider.GetService<S1F13Handler>()!);
             services.AddTransient<S1F15Handler>();
             services.AddTransient<S1F17Handler>();
 
-            // Stream 2 - Éè±¸¿ØÖÆ
+            // Stream 2 - è®¾å¤‡æ§åˆ¶
             services.AddTransient<S2F13Handler>();
             services.AddTransient<S2F15Handler>();
             services.AddTransient<S2F29Handler>();
@@ -242,21 +273,57 @@ namespace SHEquipmentSystem
             services.AddTransient<S2F37Handler>();
             services.AddTransient<S2F41Handler>();
 
-            // Stream 6 - ÊÂ¼ş±¨¸æ
+            // Stream 6 - æ—¥å¿—é€šä¿¡
             services.AddTransient<S6F11Handler>();
             services.AddTransient<S6F15Handler>();
             services.AddTransient<S6F19Handler>();
 
-            // Stream 7 - Åä·½¹ÜÀí
+            // Stream 7 - è¯Šæ–­é€šä¿¡
             //services.AddTransient<S7F1Handler>();
             //services.AddTransient<S7F3Handler>();
             //services.AddTransient<S7F5Handler>();
             //services.AddTransient<S7F17Handler>();
             //services.AddTransient<S7F19Handler>();
 
-            // Stream 10 - ÖÕ¶Ë·şÎñ
+            // Stream 10 - è¿œç¨‹å‘½ä»¤
             //services.AddTransient<S10F1Handler>();
             //services.AddTransient<S10F3Handler>();
+        }
+
+        /// <summary>
+        /// æ³¨å†Œå•è®¾å¤‡æœåŠ¡
+        /// </summary>
+        private static void RegisterSingleDeviceServices(IServiceCollection services)
+        {
+            // æ³¨å†Œæ ¸å¿ƒæœåŠ¡
+            RegisterCoreServices(services);
+
+            // æ³¨å†ŒSECSæœåŠ¡
+            RegisterSecsServices(services);
+
+            // æ³¨å†Œæ¶ˆæ¯å¤„ç†å™¨
+            RegisterMessageHandlers(services);
+
+            // æ³¨å†Œåå°æœåŠ¡
+            services.AddHostedService<EquipmentBackgroundService>();
+        }
+
+        /// <summary>
+        /// æ³¨å†Œå¤šè®¾å¤‡æœåŠ¡
+        /// </summary>
+        private static void RegisterMultiDeviceServices(IServiceCollection services)
+        {
+            // æ³¨å†Œæ ¸å¿ƒæœåŠ¡
+            RegisterCoreServices(services);
+
+            // æ³¨å†ŒSECSæœåŠ¡
+            RegisterSecsServices(services);
+
+            // æ³¨å†Œæ¶ˆæ¯å¤„ç†å™¨
+            RegisterMessageHandlers(services);
+
+            // æ³¨å†Œåå°æœåŠ¡
+            services.AddHostedService<EquipmentBackgroundService>();
         }
     } 
 }

@@ -18,6 +18,14 @@ namespace SHEquipmentSystem.Controllers
             return View();
         }
 
+        /// <summary>
+        /// 多设备管理页面
+        /// </summary>
+        public IActionResult MultiDevice()
+        {
+            return View();
+        }
+
         public IActionResult Privacy()
         {
             return View();

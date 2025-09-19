@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿﻿﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,8 @@ using DiceEquipmentSystem.Core.Enums;
 using DiceEquipmentSystem.Services.Interfaces;
 using DiceEquipmentSystem.Secs.Interfaces;
 using DiceEquipmentSystem.PLC.Interfaces;
+using DiceEquipmentSystem.Services;
+using DiceEquipmentSystem.Core.Managers;
 
 namespace SHEquipmentSystem.Controllers
 {
@@ -17,10 +19,12 @@ namespace SHEquipmentSystem.Controllers
     {
         private readonly ILogger<StateController> _logger;
 
-        // 主要服务 - EquipmentStateService
-        private readonly IEquipmentStateService? _stateService;
+        // 多实例服务
+        private readonly IEquipmentInstanceService? _equipmentInstanceService;
+        private readonly IEquipmentInstanceManager? _instanceManager;
 
-        // 可选的辅助服务
+        // 向后兼容 - 主要服务
+        private readonly IEquipmentStateService? _stateService;
         private readonly ISecsConnectionManager? _secsConnectionManager;
         private readonly IPlcDataProvider? _plcDataProvider;
 
@@ -29,11 +33,15 @@ namespace SHEquipmentSystem.Controllers
 
         public StateController(
             ILogger<StateController> logger,
+            IEquipmentInstanceService? equipmentInstanceService = null,
+            IEquipmentInstanceManager? instanceManager = null,
             IEquipmentStateService? stateService = null,
             ISecsConnectionManager? secsConnectionManager = null,
             IPlcDataProvider? plcDataProvider = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _equipmentInstanceService = equipmentInstanceService;
+            _instanceManager = instanceManager;
             _stateService = stateService;
             _secsConnectionManager = secsConnectionManager;
             _plcDataProvider = plcDataProvider;
