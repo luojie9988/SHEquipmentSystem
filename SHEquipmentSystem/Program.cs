@@ -1,5 +1,8 @@
 using DiceEquipmentSystem.Core.Configuration;
+using DiceEquipmentSystem.Core.Managers;
 using DiceEquipmentSystem.Core.StateMachine;
+using DiceEquipmentSystem.Data.Repositories;
+using DiceEquipmentSystem.Extensions;
 using DiceEquipmentSystem.PLC.Interfaces;
 using DiceEquipmentSystem.PLC.Mapping;
 using DiceEquipmentSystem.PLC.Services;
@@ -8,7 +11,6 @@ using DiceEquipmentSystem.Secs.Handlers;
 using DiceEquipmentSystem.Secs.Interfaces;
 using DiceEquipmentSystem.Services;
 using DiceEquipmentSystem.Services.Interfaces;
-using DiceEquipmentSystem.Core.Managers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -89,7 +91,10 @@ namespace SHEquipmentSystem
                 Log.Information("启用单设备模式（向后兼容）");
                 RegisterSingleDeviceServices(builder.Services);
             }
-
+            // 确保数据目录存在
+            //builder.Services.EnsureDataDirectory();
+            //// 添加ID映射功能（包含数据库、Repository和服务）
+            //builder.Services.AddIdMappingFeature(builder.Configuration);
             // 配置JSON序列化选项
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
@@ -110,20 +115,38 @@ namespace SHEquipmentSystem
             // 注册消息处理器
             RegisterMessageHandlers(builder.Services);
 
+            //builder.Services.AddScoped<IIdMappingService, IdMappingService>();
+
             // 注册后台服务
             builder.Services.AddHostedService<EquipmentBackgroundService>();
             // Add services to the container.
             builder.Services.AddControllersWithViews();
             // 配置内存缓存
             builder.Services.AddMemoryCache();
-
+          
             // 配置Kestrel服务器以使用指定端口
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
                 serverOptions.ListenAnyIP(5001); // 替换为5000或其他端口号，例如5001
             });
             var app = builder.Build();
+            // 验证关键服务是否注册成功
+            //using (var scope = app.Services.CreateScope())
+            //{
+            //    try
+            //    {
+            //        var dbContext = scope.ServiceProvider.GetRequiredService<IdMappingDbContext>();
+            //        var svidRepo = scope.ServiceProvider.GetRequiredService<ISvidMappingRepository>();
+            //        var idMappingService = scope.ServiceProvider.GetRequiredService<IIdMappingService>();
 
+            //        app.Logger.LogInformation("所有关键服务注册成功");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        app.Logger.LogError(ex, "服务注册验证失败");
+            //        throw;
+            //    }
+            //}
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
@@ -143,8 +166,9 @@ namespace SHEquipmentSystem
                 pattern: "{controller=Home}/{action=Index}/{id?}");
             // 启动设备系统
             await StartEquipmentSystem(app);
+            // 确保数据库初始化
+           // await app.Services.EnsureIdMappingDatabaseAsync();
             await app.RunAsync();
-            //app.host.RunAsService();
         }
 
         /// <summary>

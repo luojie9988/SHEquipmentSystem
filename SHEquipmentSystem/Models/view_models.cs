@@ -63,17 +63,6 @@ namespace SHEquipmentSystem.ViewModels
         public bool Editing { get; set; } = false;
     }
 
-    /// <summary>
-    /// SVID映射配置
-    /// </summary>
-    public class SvidMapping
-    {
-        public uint Svid { get; set; }
-        public string PlcAddress { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string DataType { get; set; } = "Int32";
-        public bool Editing { get; set; } = false;
-    }
 
     /// <summary>
     /// 默认报告配置

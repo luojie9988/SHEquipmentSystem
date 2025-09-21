@@ -1,0 +1,978 @@
+﻿<!-- 文件路径: Views/IdMapping/Index.cshtml -->
+@{
+    Layout = null; // 不使用布局文件
+}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ID映射配置管理 - SH设备配置系统</title>
+
+    <!-- Element Plus CSS - 使用本地文件 -->
+    <link rel="stylesheet" href="~/lib/element-plus/index.css">
+
+    <!-- JavaScript 依赖 - 使用本地文件 -->
+    <script src="~/lib/vue/vue.global.js"></script>
+    <script src="~/lib/element-plus/index.full.js"></script>
+    <script src="~/lib/element-plus-icons-vue/index.iife.min.js"></script>
+    <script src="~/lib/axios/axios.min.js"></script>
+    <script src="~/lib/element-plus/locale/zh-cn.min.js"></script>
+
+    <!-- 自定义样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+            .header h1 {
+                font-size: 24px;
+                font-weight: 600;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+        .main-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            margin-bottom: 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0;
+            color: #303133;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .operation-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .main-tabs {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content {
+            padding: 20px;
+        }
+
+        .search-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .table-container {
+            margin-bottom: 20px;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 100px;
+        }
+
+        .error-container {
+            text-align: center;
+            padding: 50px;
+            color: #f56c6c;
+        }
+
+        .status-tag {
+            font-size: 12px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .statistics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .nav-button {
+            margin-bottom: 10px;
+        }
+
+        /* 响应式设计 */
+        @@media (max-width: 768px) {
+            .main-container
+
+        {
+            padding: 10px;
+        }
+
+        .header-content {
+            flex-direction: column;
+            gap: 15px;
+            align-items: stretch;
+        }
+
+        .operation-buttons {
+            justify-content: center;
+        }
+
+        .search-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .action-buttons {
+            justify-content: center;
+        }
+
+        }
+
+        /* 加载状态 */
+        [v-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <div class="header">
+        <h1>
+            <el-button link onclick="window.history.back()" style="color: white; margin-right: 10px;">
+                <el-icon><ArrowLeft /></el-icon>
+                返回
+            </el-button>
+            🔧 ID映射配置管理
+        </h1>
+    </div>
+
+    <div class="main-container">
+        <div id="app" v-cloak>
+            <!-- 页面头部操作区 -->
+            <el-card class="header-card">
+                <div class="header-content">
+                    <h2 class="header-title">
+                        <el-icon><Setting /></el-icon>
+                        SECS/GEM ID映射配置
+                    </h2>
+                    <div class="operation-buttons">
+                        <el-button v-on:click="exportConfig" :loading="exporting" type="success">
+                            <el-icon><Download /></el-icon>
+                            导出配置
+                        </el-button>
+                        <el-button v-on:click="showImportDialog" type="warning">
+                            <el-icon><Upload /></el-icon>
+                            导入配置
+                        </el-button>
+                        <el-button v-on:click="refreshAll" :loading="loading" type="primary">
+                            <el-icon><Refresh /></el-icon>
+                            刷新数据
+                        </el-button>
+                    </div>
+                </div>
+            </el-card>
+
+            <!-- 统计信息卡片 -->
+            <el-card style="margin-bottom: 20px;" v-if="showStatistics">
+                <template #header>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600;">配置统计信息</span>
+                        <el-button text v-on:click="showStatistics = false">
+                            <el-icon><Close /></el-icon>
+                        </el-button>
+                    </div>
+                </template>
+                <div class="statistics-grid">
+                    <el-statistic title="状态变量 (SVID)" :value="svidMappings.length" suffix="个">
+                        <template #title>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon style="color: #409eff;"><DataLine /></el-icon>
+                                状态变量 (SVID)
+                            </div>
+                        </template>
+                    </el-statistic>
+                    <el-statistic title="事件 (CEID)" :value="ceidMappings.length" suffix="个">
+                        <template #title>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon style="color: #67c23a;"><Bell /></el-icon>
+                                事件 (CEID)
+                            </div>
+                        </template>
+                    </el-statistic>
+                    <el-statistic title="报告 (RPTID)" :value="rptidMappings.length" suffix="个">
+                        <template #title>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon style="color: #e6a23c;"><Document /></el-icon>
+                                报告 (RPTID)
+                            </div>
+                        </template>
+                    </el-statistic>
+                    <el-statistic title="报警 (ALID)" :value="alidMappings.length" suffix="个">
+                        <template #title>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon style="color: #f56c6c;"><Warning /></el-icon>
+                                报警 (ALID)
+                            </div>
+                        </template>
+                    </el-statistic>
+                </div>
+            </el-card>
+
+            <!-- 主要内容区 -->
+            <el-card class="main-tabs">
+                <el-tabs v-model="activeTab" type="border-card" v-on:tab-change="handleTabChange">
+                    <!-- SVID映射管理 -->
+                    <el-tab-pane name="svid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><DataLine /></el-icon>
+                                状态变量 (SVID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-input v-model="svidSearchTerm"
+                                          placeholder="搜索SVID名称或描述..."
+                                          style="width: 300px"
+                                          clearable
+                                          v-on:input="searchSvids">
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                                <el-button type="primary" v-on:click="showAddSvidDialog">
+                                    <el-icon><Plus /></el-icon>
+                                    添加SVID映射
+                                </el-button>
+                            </div>
+
+                            <div class="table-container">
+                             
+                                <el-table :data="svidMappings"
+                                          v-loading="loading"
+                                          border
+                                          height="100%"
+                                          style="width: 100%"
+                                          empty-text="暂无SVID映射数据">
+                                    <el-table-column prop="svidId" label="SVID ID" width="150" sortable></el-table-column>
+                                    <el-table-column prop="svidName" label="SVID名称" min-width="150" show-overflow-tooltip></el-table-column> 
+                                    <el-table-column prop="plcAddress" label="PLC地址" width="120"></el-table-column>
+                                    <el-table-column prop="dataTypeName" label="数据类型" width="100"></el-table-column>
+                                    <el-table-column prop="units" label="单位" width="80"></el-table-column>
+                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="isActive" label="状态" width="80">
+                                    <template #default="scope">
+                                            <el-tag :type="scope.row.isActive ? 'success' : 'info'" class="status-tag">
+                                                {{ scope.row.isActive ? '启用' : '禁用' }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="180" fixed="right">
+                                        <template #default="scope">
+                                            <div class="action-buttons">
+                                                <el-button size="small" type="primary" v-on:click="editSvid(scope.row)">
+                                                    编辑
+                                                </el-button>
+                                                <el-button size="small" type="danger" v-on:click="deleteSvid(scope.row)">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- CEID映射管理 -->
+                    <el-tab-pane name="ceid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><Bell /></el-icon>
+                                事件 (CEID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-button type="primary" v-on:click="showAddCeidDialog">
+                                    <el-icon><Plus /></el-icon>
+                                    添加CEID映射
+                                </el-button>
+                            </div>
+
+                            <div class="table-container">
+                                <el-table :data="ceidMappings"
+                                          v-loading="loading"
+                                          border
+                                          stripe
+                                          style="width: 100%"
+                                          empty-text="暂无CEID映射数据">
+                                    <el-table-column prop="ceidId" label="CEID ID" width="150" sortable></el-table-column>
+                                    <el-table-column prop="eventName" label="事件名称" min-width="150" show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="triggerAddress" label="触发地址" width="120"></el-table-column>
+                                    <el-table-column prop="triggerTypeName" label="触发类型" width="120"></el-table-column>
+                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="isEnabled" label="状态" width="80">
+                                        <template #default="scope">
+                                            <el-tag :type="scope.row.isEnabled ? 'success' : 'info'" class="status-tag">
+                                                {{ scope.row.isEnabled ? '启用' : '禁用' }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="180" fixed="right">
+                                        <template #default="scope">
+                                            <div class="action-buttons">
+                                                <el-button size="small" type="primary" v-on:click="editCeid(scope.row)">
+                                                    编辑
+                                                </el-button>
+                                                <el-button size="small" type="danger" v-on:click="deleteCeid(scope.row)">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- RPTID映射管理 -->
+                    <el-tab-pane name="rptid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><Document /></el-icon>
+                                报告 (RPTID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-button type="primary" v-on:click="showAddRptidDialog">
+                                    <el-icon><Plus /></el-icon>
+                                    添加RPTID映射
+                                </el-button>
+                            </div>
+
+                            <div class="table-container">
+                                <el-table :data="rptidMappings"
+                                          v-loading="loading"
+                                          border
+                                          stripe
+                                          style="width: 100%"
+                                          empty-text="暂无RPTID映射数据">
+                                    <el-table-column prop="rptidId" label="RPTID ID" width="150" sortable></el-table-column>
+                                    <el-table-column prop="reportName" label="报告名称" min-width="150" show-overflow-tooltip></el-table-column>
+                                    <el-table-column label="包含SVID" min-width="200">
+                                        <template #default="scope">
+                                            <el-tag v-for="item in scope.row.svidItems"
+                                                    :key="item.svidId"
+                                                    size="small"
+                                                    style="margin-right: 5px;">
+                                                {{ item.svidId }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="isActive" label="状态" width="80">
+                                        <template #default="scope">
+                                            <el-tag :type="scope.row.isActive ? 'success' : 'info'" class="status-tag">
+                                                {{ scope.row.isActive ? '启用' : '禁用' }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="180" fixed="right">
+                                        <template #default="scope">
+                                            <div class="action-buttons">
+                                                <el-button size="small" type="primary" v-on:click="editRptid(scope.row)">
+                                                    编辑
+                                                </el-button>
+                                                <el-button size="small" type="danger" v-on:click="deleteRptid(scope.row)">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- ALID映射管理 -->
+                    <el-tab-pane name="alid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><Warning /></el-icon>
+                                报警 (ALID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-button type="primary" v-on:click="showAddAlidDialog">
+                                    <el-icon><Plus /></el-icon>
+                                    添加ALID映射
+                                </el-button>
+                            </div>
+
+                            <div class="table-container">
+                                <el-table :data="alidMappings"
+                                          v-loading="loading"
+                                          border
+                                          stripe
+                                          style="width: 100%"
+                                          empty-text="暂无ALID映射数据">
+                                    <el-table-column prop="alidId" label="ALID ID" width="150" sortable></el-table-column>
+                                    <el-table-column prop="alarmName" label="报警名称" min-width="150" show-overflow-tooltip ></el-table-column> 
+                                    <el-table-column prop="plcAddress" label="PLC地址" width="120" ></el-table-column> 
+                                    <el-table-column prop="priorityName" label="优先级" width="100"></el-table-column>
+                                    <el-table-column prop="categoryName" label="分类" width="100"></el-table-column>
+                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="isMonitored" label="状态" width="80">
+                                        <template #default="scope">
+                                            <el-tag :type="scope.row.isMonitored ? 'success' : 'info'" class="status-tag">
+                                                {{ scope.row.isMonitored ? '监控中' : '已停止' }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="180" fixed="right">
+                                        <template #default="scope">
+                                            <div class="action-buttons">
+                                                <el-button size="small" type="primary" v-on:click="editAlid(scope.row)">
+                                                    编辑
+                                                </el-button>
+                                                <el-button size="small" type="danger" v-on:click="deleteAlid(scope.row)">
+                                                    删除
+                                                </el-button>
+                                            </div>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+                </el-tabs>
+            </el-card>
+
+            <!-- SVID添加/编辑对话框 -->
+            <el-dialog v-model="svidDialogVisible"
+                       :title="svidDialogMode === 'add' ? '添加SVID映射' : '编辑SVID映射'"
+                       width="600px">
+                <el-form :model="svidForm" :rules="svidRules" ref="svidFormRef" label-width="120px">
+                    <el-form-item label="SVID ID" prop="svidId">
+                        <el-input-number v-model="svidForm.svidId"
+                                         :min="10000"
+                                         :max="10099"
+                                         :disabled="svidDialogMode === 'edit'"
+                                         style="width: 100%" />
+                    </el-form-item>
+                    <el-form-item label="SVID名称" prop="svidName">
+                        <el-input v-model="svidForm.svidName" placeholder="请输入SVID名称" />
+                    </el-form-item>
+                    <el-form-item label="PLC地址" prop="plcAddress">
+                        <div style="width: 100%;">
+                            <el-input v-model="svidForm.plcAddress" placeholder="如: D100, M10" />
+                            <el-button size="small"
+                                       type="primary"
+                                       v-on:click="validatePlcAddress"
+                                       :loading="validatingAddress"
+                                       style="margin-top: 5px;">
+                                验证地址
+                            </el-button>
+                        </div>
+                    </el-form-item>
+                    <el-form-item label="数据类型" prop="dataType">
+                        <el-select v-model="svidForm.dataType" placeholder="请选择数据类型" style="width: 100%">
+                            <el-option label="Bool" :value="0" />
+                            <el-option label="Int16" :value="1" />
+                            <el-option label="Int32" :value="2" />
+                            <el-option label="Float" :value="3" />
+                            <el-option label="Double" :value="4" />
+                            <el-option label="String" :value="5" />
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="单位" prop="units">
+                        <el-input v-model="svidForm.units" placeholder="如: °C, mm, count" />
+                    </el-form-item>
+                    <el-form-item label="描述" prop="description">
+                        <el-input v-model="svidForm.description"
+                                  type="textarea"
+                                  :rows="3"
+                                  placeholder="请输入描述信息" />
+                    </el-form-item>
+                    <el-form-item label="状态" prop="isActive">
+                        <el-switch v-model="svidForm.isActive" />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <div>
+                        <el-button v-on:click="svidDialogVisible = false">取消</el-button>
+                        <el-button type="primary" v-on:click="saveSvid" :loading="saving">保存</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 导入对话框 -->
+            <el-dialog v-model="importDialogVisible" title="导入配置" width="600px">
+                <el-input v-model="importData"
+                          type="textarea"
+                          :rows="10"
+                          placeholder="请粘贴配置JSON数据" />
+                <template #footer>
+                    <div>
+                        <el-button v-on:click="importDialogVisible = false">取消</el-button>
+                        <el-button type="primary" v-on:click="importConfig" :loading="importing">导入</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, getCurrentInstance } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            setup() {
+                // 响应式数据
+                const activeTab = ref('svid');
+                const loading = ref(false);
+                const exporting = ref(false);
+                const importing = ref(false);
+                const saving = ref(false);
+                const validatingAddress = ref(false);
+                const showStatistics = ref(true);
+
+                // 数据列表
+                const svidMappings = ref([]);
+                const ceidMappings = ref([]);
+                const rptidMappings = ref([]);
+                const alidMappings = ref([]);
+
+                // 搜索
+                const svidSearchTerm = ref('');
+
+                // 对话框状态
+                const svidDialogVisible = ref(false);
+                const svidDialogMode = ref('add');
+                const importDialogVisible = ref(false);
+                const importData = ref('');
+
+                // 表单数据
+                const svidForm = reactive({
+                    svidId: null,
+                    svidName: '',
+                    plcAddress: '',
+                    dataType: 1,
+                    units: '',
+                    description: '',
+                    isActive: true
+                });
+
+                // 表单验证规则
+                const svidRules = {
+                    svidId: [
+                        { required: true, message: '请输入SVID ID', trigger: 'blur' },
+                        { type: 'number', min: 10000, max: 10099, message: 'SVID ID必须在10000-10099范围内', trigger: 'blur' }
+                    ],
+                    svidName: [
+                        { required: true, message: '请输入SVID名称', trigger: 'blur' },
+                        { max: 100, message: '名称长度不能超过100个字符', trigger: 'blur' }
+                    ],
+                    plcAddress: [
+                        { required: true, message: '请输入PLC地址', trigger: 'blur' },
+                        { pattern: /^[DMXY]\d+(\.\d+)?$/, message: 'PLC地址格式不正确', trigger: 'blur' }
+                    ],
+                    dataType: [
+                        { required: true, message: '请选择数据类型', trigger: 'change' }
+                    ]
+                };
+
+                // API调用
+                const api = {
+                    async get(url) {
+                        try {
+                            const response = await axios.get(`/api/idmapping${url}`);
+                            return response.data;
+                        } catch (error) {
+                            console.error('API请求失败:', error);
+                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
+                            throw error;
+                        }
+                    },
+
+                    async post(url, data) {
+                        try {
+                            const response = await axios.post(`/api/idmapping${url}`, data);
+                            return response.data;
+                        } catch (error) {
+                            console.error('API请求失败:', error);
+                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
+                            throw error;
+                        }
+                    },
+
+                    async put(url, data) {
+                        try {
+                            const response = await axios.put(`/api/idmapping${url}`, data);
+                            return response.data;
+                        } catch (error) {
+                            console.error('API请求失败:', error);
+                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
+                            throw error;
+                        }
+                    },
+
+                    async delete(url) {
+                        try {
+                            const response = await axios.delete(`/api/idmapping${url}`);
+                            return response.data;
+                        } catch (error) {
+                            console.error('API请求失败:', error);
+                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
+                            throw error;
+                        }
+                    }
+                };
+
+                // 加载数据方法
+                const loadSvidMappings = async () => {
+                    loading.value = true;
+                    try {
+                        const result = await api.get('/svids');
+                        if (result.success) {
+                            svidMappings.value = result.data || [];
+                        }
+                    } catch (error) {
+                        console.error('加载SVID映射失败:', error);
+                        ElMessage.warning('加载SVID映射数据失败，请检查服务器连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadCeidMappings = async () => {
+                    loading.value = true;
+                    try {
+                        const result = await api.get('/ceids');
+                        if (result.success) {
+                            ceidMappings.value = result.data || [];
+                        }
+                    } catch (error) {
+                        console.error('加载CEID映射失败:', error);
+                        ElMessage.warning('加载CEID映射数据失败，请检查服务器连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadRptidMappings = async () => {
+                    loading.value = true;
+                    try {
+                        const result = await api.get('/rptids');
+                        if (result.success) {
+                            rptidMappings.value = result.data || [];
+                        }
+                    } catch (error) {
+                        console.error('加载RPTID映射失败:', error);
+                        ElMessage.warning('加载RPTID映射数据失败，请检查服务器连接');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadAlidMappings = async () => {
+                    loading.value = true;
+                    try {
+                        // 暂时模拟数据
+                        alidMappings.value = [];
+                        ElMessage.info('ALID映射功能开发中...');
+                    } catch (error) {
+                        console.error('加载ALID映射失败:', error);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // 事件处理方法
+                const handleTabChange = (tabName) => {
+                    switch (tabName) {
+                        case 'svid':
+                            loadSvidMappings();
+                            break;
+                        case 'ceid':
+                            loadCeidMappings();
+                            break;
+                        case 'rptid':
+                            loadRptidMappings();
+                            break;
+                        case 'alid':
+                            loadAlidMappings();
+                            break;
+                    }
+                };
+
+                const refreshAll = () => {
+                    handleTabChange(activeTab.value);
+                };
+
+                const searchSvids = () => {
+                    loadSvidMappings();
+                };
+
+                // SVID操作方法
+                const showAddSvidDialog = () => {
+                    svidDialogMode.value = 'add';
+                    resetSvidForm();
+                    svidDialogVisible.value = true;
+                };
+
+                const editSvid = (row) => {
+                    svidDialogMode.value = 'edit';
+                    Object.assign(svidForm, row);
+                    svidDialogVisible.value = true;
+                };
+
+                const resetSvidForm = () => {
+                    Object.assign(svidForm, {
+                        svidId: null,
+                        svidName: '',
+                        plcAddress: '',
+                        dataType: 1,
+                        units: '',
+                        description: '',
+                        isActive: true
+                    });
+                };
+
+                const validatePlcAddress = async () => {
+                    if (!svidForm.plcAddress) {
+                        ElMessage.warning('请先输入PLC地址');
+                        return;
+                    }
+
+                    validatingAddress.value = true;
+                    try {
+                        const result = await api.post('/validate/plc-address', { plcAddress: svidForm.plcAddress });
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        ElMessage.error('验证PLC地址失败');
+                    } finally {
+                        validatingAddress.value = false;
+                    }
+                };
+
+                const saveSvid = async () => {
+                    const instance = getCurrentInstance();
+                    const formRef = instance?.refs?.svidFormRef;
+
+                    if (!formRef) {
+                        ElMessage.error('表单引用获取失败');
+                        return;
+                    }
+
+                    try {
+                        await formRef.validate();
+                    } catch (error) {
+                        return;
+                    }
+
+                    saving.value = true;
+                    try {
+                        let result;
+                        if (svidDialogMode.value === 'add') {
+                            result = await api.post('/svids', svidForm);
+                        } else {
+                            const { svidId, ...updateData } = svidForm;
+                            result = await api.put(`/svids/${svidId}`, updateData);
+                        }
+
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            svidDialogVisible.value = false;
+                            loadSvidMappings();
+                        }
+                    } catch (error) {
+                        console.error('保存SVID失败:', error);
+                    } finally {
+                        saving.value = false;
+                    }
+                };
+
+                const deleteSvid = async (row) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除SVID映射 "${row.svidName}" (${row.svidId}) 吗？`,
+                            '确认删除',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        );
+
+                        const result = await api.delete(`/svids/${row.svidId}`);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            loadSvidMappings();
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('删除SVID失败:', error);
+                        }
+                    }
+                };
+
+                // 导入导出方法
+                const exportConfig = async () => {
+                    exporting.value = true;
+                    try {
+                        const result = await api.get('/export');
+                        if (result.success) {
+                            const blob = new Blob([result.data], { type: 'application/json' });
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `id-mappings-${new Date().toISOString().split('T')[0]}.json`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                            ElMessage.success('配置导出成功');
+                        }
+                    } catch (error) {
+                        console.error('导出配置失败:', error);
+                    } finally {
+                        exporting.value = false;
+                    }
+                };
+
+                const showImportDialog = () => {
+                    importData.value = '';
+                    importDialogVisible.value = true;
+                };
+
+                const importConfig = async () => {
+                    if (!importData.value.trim()) {
+                        ElMessage.warning('请输入配置数据');
+                        return;
+                    }
+
+                    importing.value = true;
+                    try {
+                        const result = await api.post('/import', { jsonData: importData.value });
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            importDialogVisible.value = false;
+                            refreshAll();
+                        }
+                    } catch (error) {
+                        console.error('导入配置失败:', error);
+                    } finally {
+                        importing.value = false;
+                    }
+                };
+
+                // 其他操作占位符
+                const showAddCeidDialog = () => ElMessage.info('CEID添加功能开发中...');
+                const editCeid = (row) => ElMessage.info('CEID编辑功能开发中...');
+                const deleteCeid = (row) => ElMessage.info('CEID删除功能开发中...');
+                const showAddRptidDialog = () => ElMessage.info('RPTID添加功能开发中...');
+                const editRptid = (row) => ElMessage.info('RPTID编辑功能开发中...');
+                const deleteRptid = (row) => ElMessage.info('RPTID删除功能开发中...');
+                const showAddAlidDialog = () => ElMessage.info('ALID添加功能开发中...');
+                const editAlid = (row) => ElMessage.info('ALID编辑功能开发中...');
+                const deleteAlid = (row) => ElMessage.info('ALID删除功能开发中...');
+
+                // 生命周期
+                onMounted(() => {
+                    console.log('IdMapping页面初始化');
+                    loadSvidMappings();
+                });
+
+                return {
+                    // 响应式数据
+                    activeTab,
+                    loading,
+                    exporting,
+                    importing,
+                    saving,
+                    validatingAddress,
+                    showStatistics,
+                    svidMappings,
+                    ceidMappings,
+                    rptidMappings,
+                    alidMappings,
+                    svidSearchTerm,
+                    svidDialogVisible,
+                    svidDialogMode,
+                    importDialogVisible,
+                    importData,
+                    svidForm,
+                    svidRules,
+
+                    // 方法
+                    handleTabChange,
+                    refreshAll,
+                    searchSvids,
+                    showAddSvidDialog,
+                    editSvid,
+                    validatePlcAddress,
+                    saveSvid,
+                    deleteSvid,
+                    exportConfig,
+                    showImportDialog,
+                    importConfig,
+                    showAddCeidDialog,
+                    editCeid,
+                    deleteCeid,
+                    showAddRptidDialog,
+                    editRptid,
+                    deleteRptid,
+                    showAddAlidDialog,
+                    editAlid,
+                    deleteAlid
+                };
+            }
+        }).use(ElementPlus, {
+            locale: ElementPlusLocaleZhCn
+        }).mount('#app');
+    </script>
+</body>
+</html>
