@@ -543,7 +543,130 @@
                     </div>
                 </template>
             </el-dialog>
+            <!-- ALID添加/编辑对话框 -->
+            <el-dialog v-model="alidDialogVisible"
+                       :title="alidDialogMode === 'add' ? '添加ALID映射' : '编辑ALID映射'"
+                       width="800px"
+                       :close-on-click-modal="false">
+                <el-form :model="alidForm"
+                         :rules="alidRules"
+                         ref="alidFormRef"
+                         label-width="120px"
+                         label-position="right">
+                    <el-row :gutter="16">
+                        <el-col :span="12">
+                            <el-form-item label="ALID ID" prop="alidId">
+                                <el-input-number v-model="alidForm.alidId"
+                                                 :min="12000"
+                                                 :max="12095"
+                                                 :disabled="alidDialogMode === 'edit'"
+                                                 placeholder="12000-12095"
+                                                 style="width: 100%" />
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="报警名称" prop="alarmName">
+                                <el-input v-model="alidForm.alarmName"
+                                          placeholder="请输入报警名称"
+                                          maxlength="100"
+                                          show-word-limit />
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
 
+                    <el-row :gutter="16">
+                        <el-col :span="12">
+                            <el-form-item label="PLC触发地址">
+                                <el-input v-model="alidForm.triggerAddress"
+                                          placeholder="如: M1000, D100"
+                                          maxlength="50" />
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="报警优先级" prop="priority">
+                                <el-select v-model="alidForm.priority" style="width: 100%">
+                                    <el-option v-for="option in priorityOptions"
+                                               :key="option.value"
+                                               :label="option.label"
+                                               :value="option.value">
+                                        <span style="float: left">{{ option.label }}</span>
+                                        <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                                            <el-tag :color="option.color" size="small">{{ option.value }}</el-tag>
+                                        </span>
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+
+                    <el-row :gutter="16">
+                        <el-col :span="12">
+                            <el-form-item label="报警分类" prop="category">
+                                <el-select v-model="alidForm.category" style="width: 100%">
+                                    <el-option v-for="option in categoryOptions"
+                                               :key="option.value"
+                                               :label="option.label"
+                                               :value="option.value">
+                                        <span style="float: left">{{ option.label }}</span>
+                                        <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                                            <el-tag :color="option.color" size="small">{{ option.value }}</el-tag>
+                                        </span>
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-form-item label="监控设置">
+                                <el-space>
+                                    <el-switch v-model="alidForm.isMonitored"
+                                               active-text="启用监控"
+                                               inactive-text="禁用监控" />
+                                    <el-switch v-model="alidForm.autoClear"
+                                               active-text="自动清除"
+                                               inactive-text="手动清除" />
+                                </el-space>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+
+                    <el-form-item label="报警描述">
+                        <el-input v-model="alidForm.description"
+                                  type="textarea"
+                                  :rows="2"
+                                  placeholder="请输入报警描述"
+                                  maxlength="500"
+                                  show-word-limit />
+                    </el-form-item>
+
+                    <el-form-item label="处理建议">
+                        <el-input v-model="alidForm.handlingSuggestion"
+                                  type="textarea"
+                                  :rows="3"
+                                  placeholder="请输入处理建议"
+                                  maxlength="1000"
+                                  show-word-limit />
+                    </el-form-item>
+
+                    <el-form-item label="报警文本模板">
+                        <el-input v-model="alidForm.alarmTextTemplate"
+                                  placeholder="支持变量: {timestamp}, {alarmId}, {category}, {priority}"
+                                  maxlength="200"
+                                  show-word-limit />
+                        <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                            支持的变量：{timestamp} - 时间戳，{alarmId} - 报警ID，{category} - 分类，{priority} - 优先级
+                        </div>
+                    </el-form-item>
+                </el-form>
+
+                <template #footer>
+                    <span class="dialog-footer">
+                        <el-button v-on:click="alidDialogVisible = false">取消</el-button>
+                        <el-button type="primary" v-on:click="saveAlid" :loading="saving">
+                            {{ alidDialogMode === 'add' ? '创建' : '保存' }}
+                        </el-button>
+                    </span>
+                </template>
+            </el-dialog>
             <!-- 导入对话框 -->
             <el-dialog v-model="importDialogVisible" title="导入配置" width="600px">
                 <el-input v-model="importData"
@@ -580,10 +703,204 @@
                 const ceidMappings = ref([]);
                 const rptidMappings = ref([]);
                 const alidMappings = ref([]);
+                        // 优先级选项
+        const priorityOptions = [
+            { value: 1, label: '低优先级', color: '#909399' },
+            { value: 2, label: '中优先级', color: '#e6a23c' },
+            { value: 3, label: '高优先级', color: '#f56c6c' },
+            { value: 4, label: '紧急', color: '#ff4d4f' }
+                ];// 分类选项
+        const categoryOptions = [
+            { value: 1, label: '系统报警', color: '#409eff' },
+            { value: 2, label: '硬件报警', color: '#f56c6c' },
+            { value: 3, label: '工艺报警', color: '#e6a23c' },
+            { value: 4, label: '安全报警', color: '#ff4d4f' },
+            { value: 5, label: '维护报警', color: '#909399' }
+                ];// ============= ALID 操作方法 =============
+        const showAddAlidDialog = () => {
+            alidDialogMode.value = 'add';
+            resetAlidForm();
+            alidDialogVisible.value = true;
+                };
+                const editAlid = (row) => {
+            alidDialogMode.value = 'edit';
+            Object.assign(alidForm, {
+                alidId: row.alidId,
+                alarmName: row.alarmName,
+                triggerAddress: row.triggerAddress || '',
+                priority: row.priority,
+                category: row.category,
+                description: row.description || '',
+                handlingSuggestion: row.handlingSuggestion || '',
+                isMonitored: row.isMonitored,
+                autoClear: row.autoClear,
+                alarmTextTemplate: row.alarmTextTemplate || ''
+            });
+            alidDialogVisible.value = true;
+        };
+                const resetAlidForm = () => {
+            Object.assign(alidForm, {
+                alidId: null,
+                alarmName: '',
+                triggerAddress: '',
+                priority: 2,
+                category: 1,
+                description: '',
+                handlingSuggestion: '',
+                isMonitored: true,
+                autoClear: false,
+                alarmTextTemplate: ''
+            });
+        };
 
+        const saveAlid = async () => {
+            if (!alidForm.alidId || !alidForm.alarmName) {
+                ElMessage.warning('请填写必填字段');
+                return;
+            }
+
+            saving.value = true;
+            try {
+                let result;
+                if (alidDialogMode.value === 'add') {
+                    result = await api.post('/alids', alidForm);
+                } else {
+                    result = await api.put(`/alids/${alidForm.alidId}`, {
+                        alarmName: alidForm.alarmName,
+                        triggerAddress: alidForm.triggerAddress,
+                        priority: alidForm.priority,
+                        category: alidForm.category,
+                        description: alidForm.description,
+                        handlingSuggestion: alidForm.handlingSuggestion,
+                        isMonitored: alidForm.isMonitored,
+                        autoClear: alidForm.autoClear,
+                        alarmTextTemplate: alidForm.alarmTextTemplate
+                    });
+                }
+
+                if (result.success) {
+                    ElMessage.success(result.message);
+                    alidDialogVisible.value = false;
+                    loadAlidMappings();
+                } else {
+                    ElMessage.error(result.message);
+                }
+            } catch (error) {
+                console.error('保存ALID失败:', error);
+                ElMessage.error('保存失败，请重试');
+            } finally {
+                saving.value = false;
+            }
+        };
+
+        const deleteAlid = async (row) => {
+            try {
+                await ElMessageBox.confirm(
+                    `确定要删除报警 "${row.alarmName}" (ID: ${row.alidId}) 吗？`,
+                    '删除确认',
+                    {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                    }
+                );
+
+                const result = await api.delete(`/alids/${row.alidId}`);
+                if (result.success) {
+                    ElMessage.success(result.message);
+                    loadAlidMappings();
+                }
+            } catch (error) {
+                if (error !== 'cancel') {
+                    console.error('删除ALID失败:', error);
+                    ElMessage.error('删除失败，请重试');
+                }
+            }
+        };
+
+        const searchAlids = () => {
+            loadAlidMappings(); // 可以根据需要实现搜索逻辑
+        };
+
+        // 批量更新监控状态
+        const toggleAlidMonitoring = async (alidIds, isMonitored) => {
+            try {
+                const result = await api.put('/alids/monitoring-status', {
+                    alidIds: alidIds,
+                    isMonitored: isMonitored
+                });
+
+                if (result.success) {
+                    ElMessage.success(result.message);
+                    loadAlidMappings();
+                }
+            } catch (error) {
+                console.error('更新监控状态失败:', error);
+                ElMessage.error('更新监控状态失败');
+            }
+        };
+
+        // 根据分类筛选
+        const filterByCategory = async (category) => {
+            try {
+                const result = await api.get(`/alids/category/${category}`);
+                if (result.success) {
+                    alidMappings.value = result.data || [];
+                }
+            } catch (error) {
+                console.error('分类筛选失败:', error);
+                ElMessage.error('分类筛选失败');
+            }
+        };
+
+        // 获取优先级颜色
+        const getPriorityColor = (priority) => {
+            const option = priorityOptions.find(opt => opt.value === priority);
+            return option ? option.color : '#909399';
+        };
+
+        // 获取分类颜色
+        const getCategoryColor = (category) => {
+            const option = categoryOptions.find(opt => opt.value === category);
+            return option ? option.color : '#409eff';
+        };
+                // ============= ALID 数据加载方法 =============
+        const loadAlidMappings = async () => {
+            loading.value = true;
+            try {
+                const result = await api.get('/alids');
+                if (result.success) {
+                    alidMappings.value = result.data || [];
+                    console.log('ALID映射数据加载成功:', alidMappings.value.length);
+                } else {
+                    ElMessage.warning(result.message || '加载ALID映射数据失败');
+                }
+            } catch (error) {
+                console.error('加载ALID映射失败:', error);
+                ElMessage.warning('加载ALID映射数据失败，请检查服务器连接');
+            } finally {
+                loading.value = false;
+            }
+        };
                 // 搜索
                 const svidSearchTerm = ref('');
-
+        // ============= ALID 数据和状态 =============
+        const alidMappings = ref([]);
+        const alidDialogVisible = ref(false);
+        const alidDialogMode = ref('add'); // 'add' 或 'edit'
+        const alidSearchTerm = ref('');
+        const alidForm = reactive({
+            alidId: null,
+            alarmName: '',
+            triggerAddress: '',
+            priority: 2,
+            category: 1,
+            description: '',
+            handlingSuggestion: '',
+            isMonitored: true,
+            autoClear: false,
+            alarmTextTemplate: ''
+        });
                 // 对话框状态
                 const svidDialogVisible = ref(false);
                 const svidDialogMode = ref('add');
@@ -600,7 +917,23 @@
                     description: '',
                     isActive: true
                 });
-
+                        // ALID 表单验证规则
+        const alidRules = {
+            alidId: [
+                { required: true, message: '请输入ALID ID', trigger: 'blur' },
+                { type: 'number', min: 12000, max: 12095, message: 'ALID ID必须在12000-12095范围内', trigger: 'blur' }
+            ],
+            alarmName: [
+                { required: true, message: '请输入报警名称', trigger: 'blur' },
+                { min: 2, max: 100, message: '报警名称长度在2到100个字符', trigger: 'blur' }
+            ],
+            priority: [
+                { required: true, message: '请选择优先级', trigger: 'change' }
+            ],
+            category: [
+                { required: true, message: '请选择分类', trigger: 'change' }
+            ]
+        };
                 // 表单验证规则
                 const svidRules = {
                     svidId: [
@@ -713,18 +1046,6 @@
                     }
                 };
 
-                const loadAlidMappings = async () => {
-                    loading.value = true;
-                    try {
-                        // 暂时模拟数据
-                        alidMappings.value = [];
-                        ElMessage.info('ALID映射功能开发中...');
-                    } catch (error) {
-                        console.error('加载ALID映射失败:', error);
-                    } finally {
-                        loading.value = false;
-                    }
-                };
 
                 // 事件处理方法
                 const handleTabChange = (tabName) => {
@@ -946,7 +1267,27 @@
                     importData,
                     svidForm,
                     svidRules,
-
+                         // 新增的 ALID 响应式数据
+        alidMappings,
+        alidDialogVisible,
+        alidDialogMode,
+        alidSearchTerm,
+        alidForm,
+        alidRules,
+        priorityOptions,
+        categoryOptions,
+            // 新增的 ALID 方法
+        loadAlidMappings,
+        showAddAlidDialog,
+        editAlid,
+        resetAlidForm,
+        saveAlid,
+        deleteAlid,
+        searchAlids,
+        toggleAlidMonitoring,
+        filterByCategory,
+        getPriorityColor,
+        getCategoryColor,
                     // 方法
                     handleTabChange,
                     refreshAll,

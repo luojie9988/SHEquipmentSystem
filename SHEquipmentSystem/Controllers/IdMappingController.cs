@@ -20,9 +20,9 @@ namespace DiceEquipmentSystem.Controllers
         private readonly IIdMappingService _idMappingService;
         private readonly ILogger<IdMappingController> _logger;
 
-        public IdMappingController(IIdMappingService idMappingService, ILogger<IdMappingController> logger)
+        public IdMappingController( ILogger<IdMappingController> logger)
         {
-           _idMappingService=idMappingService;
+           //_idMappingService=idMappingService;
             _logger = logger;
         }
 
@@ -31,6 +31,107 @@ namespace DiceEquipmentSystem.Controllers
             _logger.LogInformation("Index");
             return View();
         }
+        #region ALID映射API
+
+        /// <summary>
+        /// 获取所有ALID映射
+        /// </summary>
+        [HttpGet("alids")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<AlidMappingDto>>>> GetAllAlidMappings()
+        {
+            var result = await _idMappingService.GetAllAlidMappingsAsync();
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// 获取指定ALID映射
+        /// </summary>
+        [HttpGet("alids/{alidId}")]
+        public async Task<ActionResult<ApiResponse<AlidMappingDto>>> GetAlidMapping(uint alidId)
+        {
+            var result = await _idMappingService.GetAlidMappingAsync(alidId);
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+
+        /// <summary>
+        /// 创建ALID映射
+        /// </summary>
+        [HttpPost("alids")]
+        public async Task<ActionResult<ApiResponse<AlidMappingDto>>> CreateAlidMapping([FromBody] CreateAlidMappingDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<AlidMappingDto>.CreateFailure("请求数据无效"));
+            }
+
+            var result = await _idMappingService.CreateAlidMappingAsync(dto);
+            return result.Success ? CreatedAtAction(nameof(GetAlidMapping), new { alidId = dto.AlidId }, result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// 更新ALID映射
+        /// </summary>
+        [HttpPut("alids/{alidId}")]
+        public async Task<ActionResult<ApiResponse<AlidMappingDto>>> UpdateAlidMapping(uint alidId, [FromBody] UpdateAlidMappingDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse<AlidMappingDto>.CreateFailure("请求数据无效"));
+            }
+
+            var result = await _idMappingService.UpdateAlidMappingAsync(alidId, dto);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// 删除ALID映射
+        /// </summary>
+        [HttpDelete("alids/{alidId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteAlidMapping(uint alidId)
+        {
+            var result = await _idMappingService.DeleteAlidMappingAsync(alidId);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// 分页获取ALID映射
+        /// </summary>
+        [HttpGet("alids/paged")]
+        public async Task<ActionResult<ApiResponse<object>>> GetAlidMappingsPaged(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? searchTerm = null)
+        {
+            var result = await _idMappingService.GetAlidMappingsPagedAsync(pageNumber, pageSize, searchTerm);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// 根据分类获取ALID映射
+        /// </summary>
+        [HttpGet("alids/category/{category}")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<AlidMappingDto>>>> GetAlidMappingsByCategory(int category)
+        {
+            var result = await _idMappingService.GetAlidMappingsByCategoryAsync(category);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// 批量更新ALID监控状态
+        /// </summary>
+        [HttpPut("alids/monitoring-status")]
+        public async Task<ActionResult<ApiResponse>> UpdateAlidMonitoringStatus([FromBody] UpdateMonitoringStatusDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ApiResponse.CreateFailure("请求数据无效"));
+            }
+
+            var result = await _idMappingService.UpdateAlidMonitoringStatusAsync(dto.AlidIds, dto.IsMonitored);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        #endregion
         #region SVID映射API
 
         /// <summary>
@@ -219,5 +320,16 @@ namespace DiceEquipmentSystem.Controllers
         }
 
         #endregion
+        /// <summary>
+        /// 更新监控状态DTO
+        /// </summary>
+        public class UpdateMonitoringStatusDto
+        {
+            /// <summary>ALID列表</summary>
+            public List<uint> AlidIds { get; set; } = new();
+
+            /// <summary>是否监控</summary>
+            public bool IsMonitored { get; set; }
+        }
     }
 }

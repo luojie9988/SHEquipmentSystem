@@ -1,10 +1,9 @@
-﻿// 文件路径: src/DiceEquipmentSystem/Services/Interfaces/IIdMappingService.cs
-using DiceEquipmentSystem.Data.Repositories;
-using DiceEquipmentSystem.Models;
+﻿﻿// 文件路径: SHEquipmentSystem/Services/Interfaces/IIdMappingService.cs
 using DiceEquipmentSystem.Models.DTOs;
 using System.Collections.Generic;
-using System.Linq.Dynamic.Core;
 using System.Threading.Tasks;
+using DiceEquipmentSystem.Models;
+using System.Linq.Dynamic.Core;
 
 namespace SHEquipmentSystem.Services.Interfaces
 {
@@ -13,13 +12,56 @@ namespace SHEquipmentSystem.Services.Interfaces
     /// </summary>
     public interface IIdMappingService
     {
+        #region ALID映射服务接口
+
+        /// <summary>
+        /// 获取所有ALID映射
+        /// </summary>
+        Task<ApiResponse<IEnumerable<AlidMappingDto>>> GetAllAlidMappingsAsync();
+
+        /// <summary>
+        /// 获取指定ALID映射
+        /// </summary>
+        Task<ApiResponse<AlidMappingDto>> GetAlidMappingAsync(uint alidId);
+
+        /// <summary>
+        /// 创建ALID映射
+        /// </summary>
+        Task<ApiResponse<AlidMappingDto>> CreateAlidMappingAsync(CreateAlidMappingDto dto);
+
+        /// <summary>
+        /// 更新ALID映射
+        /// </summary>
+        Task<ApiResponse<AlidMappingDto>> UpdateAlidMappingAsync(uint alidId, UpdateAlidMappingDto dto);
+
+        /// <summary>
+        /// 删除ALID映射
+        /// </summary>
+        Task<ApiResponse> DeleteAlidMappingAsync(uint alidId);
+
+        /// <summary>
+        /// 分页获取ALID映射
+        /// </summary>
+        Task<ApiResponse<PagedResult<AlidMappingDto>>> GetAlidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null);
+
+        /// <summary>
+        /// 根据分类获取ALID映射
+        /// </summary>
+        Task<ApiResponse<IEnumerable<AlidMappingDto>>> GetAlidMappingsByCategoryAsync(int category);
+
+        /// <summary>
+        /// 批量更新ALID监控状态
+        /// </summary>
+        Task<ApiResponse> UpdateAlidMonitoringStatusAsync(List<uint> alidIds, bool isMonitored);
+
+#endregion
         // SVID映射服务
         Task<ApiResponse<IEnumerable<SvidMappingDto>>> GetAllSvidMappingsAsync();
         Task<ApiResponse<SvidMappingDto>> GetSvidMappingAsync(uint svidId);
         Task<ApiResponse<SvidMappingDto>> CreateSvidMappingAsync(CreateSvidMappingDto dto);
         Task<ApiResponse<SvidMappingDto>> UpdateSvidMappingAsync(uint svidId, UpdateSvidMappingDto dto);
         Task<ApiResponse> DeleteSvidMappingAsync(uint svidId);
-        Task<ApiResponse<DiceEquipmentSystem.Data.Repositories.PagedResult<SvidMappingDto>>> GetSvidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null);
+        Task<ApiResponse<PagedResult<SvidMappingDto>>> GetSvidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null);
 
         // CEID映射服务
         Task<ApiResponse<IEnumerable<CeidMappingDto>>> GetAllCeidMappingsAsync();

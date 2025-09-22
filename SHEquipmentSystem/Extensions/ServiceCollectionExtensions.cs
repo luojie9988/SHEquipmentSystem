@@ -72,9 +72,11 @@ namespace DiceEquipmentSystem.Extensions
             // 注册泛型Repository
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-            // 注册专用Repository
+            // 注册所有 Repository 接口和实现
             services.AddScoped<ISvidMappingRepository, SvidMappingRepository>();
+            services.AddScoped<ICeidMappingRepository, CeidMappingRepository>();
             services.AddScoped<IRptidMappingRepository, RptidMappingRepository>();
+            services.AddScoped<IAlidMappingRepository, AlidMappingRepository>();
 
             return services;
         }

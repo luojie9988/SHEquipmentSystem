@@ -94,8 +94,8 @@ namespace SHEquipmentSystem
                 RegisterSingleDeviceServices(builder.Services);
             }
             // 确保数据目录存在
-
             builder.Services.EnsureDataDirectory();
+
             //// 添加ID映射功能（包含数据库、Repository和服务）
             builder.Services.AddIdMappingFeature(builder.Configuration);
             // 配置JSON序列化选项
@@ -118,8 +118,8 @@ namespace SHEquipmentSystem
             // 注册消息处理器
             RegisterMessageHandlers(builder.Services);
 
-            builder.Services.AddScoped<ISvidMappingRepository, SvidMappingRepository>();
-            builder.Services.AddScoped<IIdMappingService, IdMappingService>();
+            //builder.Services.AddScoped<ISvidMappingRepository, SvidMappingRepository>();
+            //builder.Services.AddScoped<IIdMappingService, IdMappingService>();
 
             // 注册后台服务
             builder.Services.AddHostedService<EquipmentBackgroundService>();
@@ -134,23 +134,26 @@ namespace SHEquipmentSystem
                 serverOptions.ListenAnyIP(5001); // 替换为5000或其他端口号，例如5001
             });
             var app = builder.Build();
-            // 验证关键服务是否注册成功
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    try
-            //    {
-            //        var dbContext = scope.ServiceProvider.GetRequiredService<IdMappingDbContext>();
-            //        var svidRepo = scope.ServiceProvider.GetRequiredService<ISvidMappingRepository>();
-            //        var idMappingService = scope.ServiceProvider.GetRequiredService<IIdMappingService>();
 
-            //        app.Logger.LogInformation("所有关键服务注册成功");
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        app.Logger.LogError(ex, "服务注册验证失败");
-            //        throw;
-            //    }
-            //}
+            // 在app.Build()之后，添加数据库初始化：
+            await app.Services.EnsureIdMappingDatabaseAsync();
+            // 验证关键服务是否注册成功
+            using (var scope = app.Services.CreateScope())
+            {
+                try
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<IdMappingDbContext>();
+                    var svidRepo = scope.ServiceProvider.GetRequiredService<ISvidMappingRepository>();
+                    var idMappingService = scope.ServiceProvider.GetRequiredService<IIdMappingService>();
+
+                    app.Logger.LogInformation("所有关键服务注册成功");
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "服务注册验证失败");
+                    throw;
+                }
+            }
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {

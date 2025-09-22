@@ -37,7 +37,7 @@ namespace DiceEquipmentSystem.Data.Entities
         public bool IsMonitored { get; set; } = true;
 
         public bool AutoClearEnabled { get; set; } = false;
-
+        public string TriggerAddress { get; set; } = string.Empty;
         // 审计字段
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

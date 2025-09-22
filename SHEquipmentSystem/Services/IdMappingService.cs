@@ -44,7 +44,218 @@ namespace SHEquipmentSystem.Services
             _plcProvider = plcProvider;
             _logger = logger;
         }
+        #region ALID映射服务实现
 
+        public async Task<ApiResponse<IEnumerable<AlidMappingDto>>> GetAllAlidMappingsAsync()
+        {
+            try
+            {
+                var entities = await _alidRepository.GetAllAsync();
+                var dtos = entities.Select(MapToAlidDto);
+                return ApiResponse<IEnumerable<AlidMappingDto>>.CreateSuccess(dtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取ALID映射失败");
+                return ApiResponse<IEnumerable<AlidMappingDto>>.CreateFailure("获取ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse<AlidMappingDto>> GetAlidMappingAsync(uint alidId)
+        {
+            try
+            {
+                var entity = await _alidRepository.GetByIdAsync((int)alidId);
+                if (entity == null)
+                {
+                    return ApiResponse<AlidMappingDto>.CreateFailure("ALID映射不存在");
+                }
+
+                var dto = MapToAlidDto(entity);
+                return ApiResponse<AlidMappingDto>.CreateSuccess(dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取ALID映射失败: {AlidId}", alidId);
+                return ApiResponse<AlidMappingDto>.CreateFailure("获取ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse<AlidMappingDto>> CreateAlidMappingAsync(CreateAlidMappingDto dto)
+        {
+            try
+            {
+                if (await _alidRepository.ExistsAsync((int)dto.AlidId))
+                {
+                    return ApiResponse<AlidMappingDto>.CreateFailure("ALID ID已存在");
+                }
+
+                var entity = new AlidMapping
+                {
+                    AlidId = dto.AlidId,
+                    AlarmName = dto.AlarmName,
+                    TriggerAddress = dto.TriggerAddress,
+                    //Priority = dto.Priority,
+                    //Category = dto.Category,
+                    Description = dto.Description,
+                    //HandlingSuggestion = dto.HandlingSuggestion,
+                    IsMonitored = dto.IsMonitored,
+                    //AutoClear = dto.AutoClear,
+                    //AlarmTextTemplate = dto.AlarmTextTemplate,
+                    //AlarmCode = (byte)(0x80 | dto.Category) // 设置报警代码
+                };
+
+                var created = await _alidRepository.CreateAsync(entity);
+                var resultDto = MapToAlidDto(created);
+
+                return ApiResponse<AlidMappingDto>.CreateSuccess(resultDto, "ALID映射创建成功");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "创建ALID映射失败");
+                return ApiResponse<AlidMappingDto>.CreateFailure("创建ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse<AlidMappingDto>> UpdateAlidMappingAsync(uint alidId, UpdateAlidMappingDto dto)
+        {
+            try
+            {
+                var entity = await _alidRepository.GetByIdAsync((int)alidId);
+                if (entity == null)
+                {
+                    return ApiResponse<AlidMappingDto>.CreateFailure("ALID映射不存在");
+                }
+
+                // 更新属性
+                entity.AlarmName = dto.AlarmName;
+                entity.TriggerAddress = dto.TriggerAddress;
+                //entity.Priority = dto.Priority;
+                //entity.Category = dto.Category;
+                entity.Description = dto.Description;
+                //entity.HandlingSuggestion = dto.HandlingSuggestion;
+                entity.IsMonitored = dto.IsMonitored;
+                //entity.AutoClear = dto.AutoClear;
+                //entity.AlarmTextTemplate = dto.AlarmTextTemplate;
+                //entity.AlarmCode = (byte)(0x80 | dto.Category);
+
+                var updated = await _alidRepository.UpdateAsync(entity);
+                var resultDto = MapToAlidDto(updated);
+
+                return ApiResponse<AlidMappingDto>.CreateSuccess(resultDto, "ALID映射更新成功");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新ALID映射失败: {AlidId}", alidId);
+                return ApiResponse<AlidMappingDto>.CreateFailure("更新ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse> DeleteAlidMappingAsync(uint alidId)
+        {
+            try
+            {
+                var success = await _alidRepository.DeleteAsync((int)alidId);
+                if (!success)
+                {
+                    return ApiResponse.CreateFailure("ALID映射不存在");
+                }
+
+                return ApiResponse.CreateSuccess("ALID映射删除成功");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除ALID映射失败: {AlidId}", alidId);
+                return ApiResponse.CreateFailure("删除ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse<object>> GetAlidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null)
+        {
+            try
+            {
+                var entities = await _alidRepository.GetPagedAsync(pageNumber, pageSize, searchTerm);
+                var totalCount = await _alidRepository.GetCountAsync(searchTerm);
+                var dtos = entities.Select(MapToAlidDto);
+
+                var result = new
+                {
+                    Data = dtos,
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                };
+
+                return ApiResponse<object>.CreateSuccess(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "分页获取ALID映射失败");
+                return ApiResponse<object>.CreateFailure("分页获取ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<AlidMappingDto>>> GetAlidMappingsByCategoryAsync(int category)
+        {
+            try
+            {
+                var entities = await _alidRepository.GetByCategoryAsync(category);
+                var dtos = entities.Select(MapToAlidDto);
+                return ApiResponse<IEnumerable<AlidMappingDto>>.CreateSuccess(dtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "根据分类获取ALID映射失败: {Category}", category);
+                return ApiResponse<IEnumerable<AlidMappingDto>>.CreateFailure("获取ALID映射失败");
+            }
+        }
+
+        public async Task<ApiResponse> UpdateAlidMonitoringStatusAsync(List<uint> alidIds, bool isMonitored)
+        {
+            try
+            {
+                var count = await _alidRepository.UpdateMonitoringStatusAsync(alidIds, isMonitored);
+                var statusText = isMonitored ? "启用" : "禁用";
+                return ApiResponse.CreateSuccess($"成功{statusText}了{count}个ALID监控");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量更新ALID监控状态失败");
+                return ApiResponse.CreateFailure("批量更新ALID监控状态失败");
+            }
+        }
+
+        #endregion
+        #region ALID映射方法
+
+        private static AlidMappingDto MapToAlidDto(AlidMapping entity)
+        {
+            return new AlidMappingDto
+            {
+                AlidId = entity.AlidId,
+                AlarmName = entity.AlarmName,
+                TriggerAddress = entity.TriggerAddress,
+                Priority = (int)entity.Priority,
+                PriorityName = entity.ToString(),
+                Category = (int)entity.Category,
+                //CategoryName = entity.CategoryName,
+                Description = entity.Description,
+                //HandlingSuggestion = entity.HandlingSuggestion,
+                IsMonitored = entity.IsMonitored,
+                AutoClear = entity.AutoClearEnabled,
+                //AlarmCode = entity.AlarmCode,
+                //AlarmTextTemplate = entity.AlarmTextTemplate,
+                //LastTriggeredAt = entity.LastTriggeredAt,
+                //FormattedLastTriggered = entity.FormattedLastTriggered,
+                //TriggerCount = entity.TriggerCount,
+                //StatusDescription = entity.StatusDescription,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
+
+        #endregion
         #region SVID映射服务
 
         public async Task<ApiResponse<IEnumerable<SvidMappingDto>>> GetAllSvidMappingsAsync()
@@ -517,17 +728,6 @@ namespace SHEquipmentSystem.Services
                 UpdatedAt = entity.UpdatedAt
             };
         }
-
-        Task<ApiResponse<PagedResult<SvidMappingDto>>> IIdMappingService.GetSvidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm)
-        {
-            throw new NotImplementedException();
-        }
-
-        Task<ApiResponse<string>> IIdMappingService.ValidatePlcAddressAsync(string plcAddress)
-        {
-            throw new NotImplementedException();
-        }
-
         #endregion
     }
 }
