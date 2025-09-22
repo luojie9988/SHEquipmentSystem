@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq.Dynamic.Core;
 using System.Threading.Tasks;
 
-namespace DiceEquipmentSystem.Services.Interfaces
+namespace SHEquipmentSystem.Services.Interfaces
 {
     /// <summary>
     /// ID映射配置服务接口
@@ -19,7 +19,7 @@ namespace DiceEquipmentSystem.Services.Interfaces
         Task<ApiResponse<SvidMappingDto>> CreateSvidMappingAsync(CreateSvidMappingDto dto);
         Task<ApiResponse<SvidMappingDto>> UpdateSvidMappingAsync(uint svidId, UpdateSvidMappingDto dto);
         Task<ApiResponse> DeleteSvidMappingAsync(uint svidId);
-        Task<ApiResponse<Data.Repositories.PagedResult<SvidMappingDto>>> GetSvidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null);
+        Task<ApiResponse<DiceEquipmentSystem.Data.Repositories.PagedResult<SvidMappingDto>>> GetSvidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null);
 
         // CEID映射服务
         Task<ApiResponse<IEnumerable<CeidMappingDto>>> GetAllCeidMappingsAsync();

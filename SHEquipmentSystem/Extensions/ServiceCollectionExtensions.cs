@@ -10,8 +10,8 @@ using System.Threading.Tasks;
 using DiceEquipmentSystem.Data;
 using DiceEquipmentSystem.Data.Repositories;
 using DiceEquipmentSystem.Data.Entities;
-using DiceEquipmentSystem.Services;
-using DiceEquipmentSystem.Services.Interfaces;
+using SHEquipmentSystem.Services.Interfaces;
+using SHEquipmentSystem.Services;
 
 namespace DiceEquipmentSystem.Extensions
 {

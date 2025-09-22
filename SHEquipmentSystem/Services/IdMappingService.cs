@@ -9,10 +9,10 @@ using DiceEquipmentSystem.Data.Entities;
 using DiceEquipmentSystem.Data.Repositories;
 using DiceEquipmentSystem.Models;
 using DiceEquipmentSystem.Models.DTOs;
-using DiceEquipmentSystem.Services.Interfaces;
 using DiceEquipmentSystem.PLC.Interfaces;
+using SHEquipmentSystem.Services.Interfaces;
 
-namespace DiceEquipmentSystem.Services
+namespace SHEquipmentSystem.Services
 {
     /// <summary>
     /// ID映射配置服务实现
@@ -200,7 +200,7 @@ namespace DiceEquipmentSystem.Services
             {
                 var pagedResult = await _svidRepository.GetPagedAsync(pageNumber, pageSize,
                     filter: string.IsNullOrEmpty(searchTerm) ? null :
-                    x => x.SvidName.Contains(searchTerm) || (x.Description != null && x.Description.Contains(searchTerm)));
+                    x => x.SvidName.Contains(searchTerm) || x.Description != null && x.Description.Contains(searchTerm));
 
                 var dtoResult = new PagedResult<SvidMappingDto>
                 {

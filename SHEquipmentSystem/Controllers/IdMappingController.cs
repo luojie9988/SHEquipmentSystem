@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using DiceEquipmentSystem.Models;
 using DiceEquipmentSystem.Models.DTOs;
-using DiceEquipmentSystem.Services.Interfaces;
+using SHEquipmentSystem.Services.Interfaces;
 
 namespace DiceEquipmentSystem.Controllers
 {
@@ -20,9 +20,9 @@ namespace DiceEquipmentSystem.Controllers
         private readonly IIdMappingService _idMappingService;
         private readonly ILogger<IdMappingController> _logger;
 
-        public IdMappingController( ILogger<IdMappingController> logger)
+        public IdMappingController(IIdMappingService idMappingService, ILogger<IdMappingController> logger)
         {
-           
+           _idMappingService=idMappingService;
             _logger = logger;
         }
 

@@ -16,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using SHEquipmentSystem.PLC.Services;
+using SHEquipmentSystem.Services;
+using SHEquipmentSystem.Services.Interfaces;
 
 namespace SHEquipmentSystem
 {
@@ -92,9 +94,10 @@ namespace SHEquipmentSystem
                 RegisterSingleDeviceServices(builder.Services);
             }
             // 确保数据目录存在
-            //builder.Services.EnsureDataDirectory();
+
+            builder.Services.EnsureDataDirectory();
             //// 添加ID映射功能（包含数据库、Repository和服务）
-            //builder.Services.AddIdMappingFeature(builder.Configuration);
+            builder.Services.AddIdMappingFeature(builder.Configuration);
             // 配置JSON序列化选项
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
@@ -115,7 +118,8 @@ namespace SHEquipmentSystem
             // 注册消息处理器
             RegisterMessageHandlers(builder.Services);
 
-            //builder.Services.AddScoped<IIdMappingService, IdMappingService>();
+            builder.Services.AddScoped<ISvidMappingRepository, SvidMappingRepository>();
+            builder.Services.AddScoped<IIdMappingService, IdMappingService>();
 
             // 注册后台服务
             builder.Services.AddHostedService<EquipmentBackgroundService>();
