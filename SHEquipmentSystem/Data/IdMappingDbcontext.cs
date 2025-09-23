@@ -1,22 +1,31 @@
 ﻿// 文件路径: src/DiceEquipmentSystem/Data/IdMappingDbContext.cs
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using DiceEquipmentSystem.Core.Interfaces;
 using DiceEquipmentSystem.Data.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiceEquipmentSystem.Data
 {
+    //数据库迁移
+    //dotnet ef migrations add InitialCreate
+    //dotnet ef database update
     /// <summary>
     /// ID映射数据库上下文
     /// </summary>
     public class IdMappingDbContext : DbContext
     {
         private readonly ILogger<IdMappingDbContext>? _logger;
-
+        public string DbPath { get; }
+        public IdMappingDbContext()
+        {
+            var path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            DbPath = Path.Join(path, "\\Data\\blogging.db");
+        }
         public IdMappingDbContext(DbContextOptions<IdMappingDbContext> options) : base(options)
         {
         }
@@ -26,7 +35,14 @@ namespace DiceEquipmentSystem.Data
         {
             _logger = logger;
         }
-
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                // 只有当没有通过DI配置时才使用默认配置
+                optionsBuilder.UseSqlite($"Data Source={DbPath}");
+            }
+        }
         // DbSets
         public DbSet<SvidMapping> SvidMappings { get; set; }
         public DbSet<CeidMapping> CeidMappings { get; set; }

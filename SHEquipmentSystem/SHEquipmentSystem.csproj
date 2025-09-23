@@ -8,14 +8,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Models\DTOs\**" />
+    <Compile Remove="Services\**" />
     <Compile Remove="Views\Config\_ConfigPartials\**" />
+    <Content Remove="Models\DTOs\**" />
+    <Content Remove="Services\**" />
     <Content Remove="Views\Config\_ConfigPartials\**" />
+    <EmbeddedResource Remove="Models\DTOs\**" />
+    <EmbeddedResource Remove="Services\**" />
     <EmbeddedResource Remove="Views\Config\_ConfigPartials\**" />
+    <None Remove="Models\DTOs\**" />
+    <None Remove="Services\**" />
     <None Remove="Views\Config\_ConfigPartials\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="Controllers\PLCConfigController1.cs" />
+    <Compile Remove="Data\DBContext.cs" />
     <Compile Remove="Models\PLCConfigViewModel.cs" />
     <Compile Remove="Program.MultiDevice.cs" />
     <Compile Remove="src\PLC\Services\MultiPlcConnectionManager.cs" />

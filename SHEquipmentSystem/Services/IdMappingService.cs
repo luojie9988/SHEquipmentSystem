@@ -170,7 +170,7 @@ namespace SHEquipmentSystem.Services
             }
         }
 
-        public async Task<ApiResponse<object>> GetAlidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null)
+        public async Task<ApiResponse<PagedResult<AlidMappingDto>>> GetAlidMappingsPagedAsync(int pageNumber, int pageSize, string? searchTerm = null)
         {
             try
             {

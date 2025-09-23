@@ -1,20 +1,22 @@
 ﻿// 文件路径: src/DiceEquipmentSystem/Extensions/ServiceCollectionExtensions.cs
+using DiceEquipmentSystem.Data;
+using DiceEquipmentSystem.Data.Entities;
+using DiceEquipmentSystem.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
-using DiceEquipmentSystem.Data;
-using DiceEquipmentSystem.Data.Repositories;
-using DiceEquipmentSystem.Data.Entities;
-using SHEquipmentSystem.Services.Interfaces;
-using SHEquipmentSystem.Services;
+//using SHEquipmentSystem.Services.Interfaces;
+//using SHEquipmentSystem.Services;
 
 namespace DiceEquipmentSystem.Extensions
-{
+{ 
     /// <summary>
     /// 服务注册扩展类
     /// </summary>
@@ -41,11 +43,15 @@ namespace DiceEquipmentSystem.Extensions
             {
                 connectionString = $"Data Source={connectionString}";
             }
-
+            var csarr = connectionString.Split('=');
+            // 默认构造函数用于迁移
+            var path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var DbPath = Path.Join(path, csarr[1]);
+            //options.UseSqlite($"{csarr[0]}={DbPath}");
             // 注册DbContext
             services.AddDbContext<IdMappingDbContext>(options =>
             {
-                options.UseSqlite(connectionString, sqliteOptions =>
+                options.UseSqlite($"{csarr[0]}={DbPath}", sqliteOptions =>
                 {
                     sqliteOptions.MigrationsAssembly(typeof(IdMappingDbContext).Assembly.FullName);
                 });
@@ -86,7 +92,7 @@ namespace DiceEquipmentSystem.Extensions
         /// </summary>
         public static IServiceCollection AddIdMappingServices(this IServiceCollection services)
         {
-            services.AddScoped<IIdMappingService, IdMappingService>();
+           // services.AddScoped<IIdMappingService, IdMappingService>();
             return services;
         }
 

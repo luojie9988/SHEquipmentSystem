@@ -1,6 +1,7 @@
 using DiceEquipmentSystem.Core.Configuration;
 using DiceEquipmentSystem.Core.Managers;
 using DiceEquipmentSystem.Core.StateMachine;
+using DiceEquipmentSystem.Data;
 using DiceEquipmentSystem.Data.Repositories;
 using DiceEquipmentSystem.Extensions;
 using DiceEquipmentSystem.PLC.Interfaces;
@@ -16,8 +17,8 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using SHEquipmentSystem.PLC.Services;
-using SHEquipmentSystem.Services;
-using SHEquipmentSystem.Services.Interfaces;
+//using SHEquipmentSystem.Services;
+//using SHEquipmentSystem.Services.Interfaces;
 
 namespace SHEquipmentSystem
 {
@@ -143,8 +144,8 @@ namespace SHEquipmentSystem
                 try
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<IdMappingDbContext>();
-                    var svidRepo = scope.ServiceProvider.GetRequiredService<ISvidMappingRepository>();
-                    var idMappingService = scope.ServiceProvider.GetRequiredService<IIdMappingService>();
+                    //var svidRepo = scope.ServiceProvider.GetRequiredService<ISvidMappingRepository>();
+                    //var idMappingService = scope.ServiceProvider.GetRequiredService<IIdMappingService>();
 
                     app.Logger.LogInformation("所有关键服务注册成功");
                 }
@@ -173,8 +174,6 @@ namespace SHEquipmentSystem
                 pattern: "{controller=Home}/{action=Index}/{id?}");
             // 启动设备系统
             await StartEquipmentSystem(app);
-            // 确保数据库初始化
-           // await app.Services.EnsureIdMappingDatabaseAsync();
             await app.RunAsync();
         }
 

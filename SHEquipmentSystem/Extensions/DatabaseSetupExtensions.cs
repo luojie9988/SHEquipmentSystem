@@ -14,7 +14,7 @@ namespace DiceEquipmentSystem.Extensions
         {
             try
             {
-                var dataDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Data");
+                var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Data");
                 if (!Directory.Exists(dataDirectory))
                 {
                     Directory.CreateDirectory(dataDirectory);

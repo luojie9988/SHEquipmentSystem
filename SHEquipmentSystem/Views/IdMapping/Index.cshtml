@@ -885,7 +885,6 @@
                 // 搜索
                 const svidSearchTerm = ref('');
         // ============= ALID 数据和状态 =============
-        const alidMappings = ref([]);
         const alidDialogVisible = ref(false);
         const alidDialogMode = ref('add'); // 'add' 或 'edit'
         const alidSearchTerm = ref('');
@@ -957,7 +956,7 @@
                 const api = {
                     async get(url) {
                         try {
-                            const response = await axios.get(`/api/idmapping${url}`);
+                            const response = await axios.get(`/idmapping${url}`);
                             return response.data;
                         } catch (error) {
                             console.error('API请求失败:', error);
@@ -968,7 +967,7 @@
 
                     async post(url, data) {
                         try {
-                            const response = await axios.post(`/api/idmapping${url}`, data);
+                            const response = await axios.post(`/idmapping${url}`, data);
                             return response.data;
                         } catch (error) {
                             console.error('API请求失败:', error);
@@ -1237,9 +1236,6 @@
                 const showAddRptidDialog = () => ElMessage.info('RPTID添加功能开发中...');
                 const editRptid = (row) => ElMessage.info('RPTID编辑功能开发中...');
                 const deleteRptid = (row) => ElMessage.info('RPTID删除功能开发中...');
-                const showAddAlidDialog = () => ElMessage.info('ALID添加功能开发中...');
-                const editAlid = (row) => ElMessage.info('ALID编辑功能开发中...');
-                const deleteAlid = (row) => ElMessage.info('ALID删除功能开发中...');
 
                 // 生命周期
                 onMounted(() => {
@@ -1268,7 +1264,7 @@
                     svidForm,
                     svidRules,
                          // 新增的 ALID 响应式数据
-        alidMappings,
+
         alidDialogVisible,
         alidDialogMode,
         alidSearchTerm,
