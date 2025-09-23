@@ -249,7 +249,15 @@
                                 <el-table-column prop="svidId" label="SVID ID" width="100" sortable></el-table-column>
                                 <el-table-column prop="svidName" label="变量名称" min-width="150"></el-table-column>
                                 <el-table-column prop="plcAddress" label="PLC地址" width="120"></el-table-column>
-                                <el-table-column prop="dataType" label="数据类型" width="100"></el-table-column>
+                                @* <el-table-column prop="dataType" label="数据类型" width="100"></el-table-column> *@
+                                <!-- 修改SVID表格中的数据类型列 -->
+                                <el-table-column prop="dataType" label="数据类型" width="120">
+                                    <template #default="scope">
+                                        <el-tag :type="getDataTypeTagType(scope.row.dataType)">
+                                            {{ getDataTypeName(scope.row.dataType) }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
                                 <el-table-column prop="units" label="单位" width="80"></el-table-column>
                                 <el-table-column prop="description" label="描述" min-width="150" show-overflow-tooltip></el-table-column>
                                 <el-table-column prop="isActive" label="状态" width="100">
@@ -465,12 +473,12 @@
                     </el-form-item>
                     <el-form-item label="数据类型" prop="dataType">
                         <el-select v-model="svidForm.dataType" style="width: 100%">
-                            <el-option label="BOOLEAN" value=0></el-option>
-                            <el-option label="Int16 (无符号2字节)" value=1></el-option>
-                            <el-option label="Int32 (无符号4字节)" value=2></el-option>
-                            <el-option label="Float (浮点)" value=3></el-option>
-                            <el-option label="Double (双精度浮点数)" value=4></el-option>
-                            <el-option label="String (字符串)" value=5></el-option>
+                            <el-option label="BOOLEAN" :value="0"></el-option>
+                            <el-option label="Int16 (无符号2字节)" :value="1"></el-option>
+                            <el-option label="Int32 (无符号4字节)" :value="2"></el-option>
+                            <el-option label="Float (浮点)" :value="3"></el-option>
+                            <el-option label="Double (双精度浮点数)" :value="4"></el-option>
+                            <el-option label="String (字符串)" :value="5"></el-option>
                         </el-select>
                     </el-form-item>
                 </div>
@@ -764,7 +772,30 @@
                     description: '',
                     isActive: true
                 });
+                // 在Vue的setup()函数中添加
+                const dataTypeMap = {
+                    0: 'BOOLEAN',
+                    1: 'Int16',
+                    2: 'Int32',
+                    3: 'Float',
+                    4: 'Double',
+                    5: 'String'
+                };
 
+                const getDataTypeName = (dataType) => {
+                    return dataTypeMap[dataType] || '未知类型';
+                };
+                const getDataTypeTagType = (dataType) => {
+                    const tagTypes = {
+                        0: '',          // BOOLEAN - 默认
+                        1: 'success',   // Int16 - 绿色
+                        2: 'warning',   // Int32 - 黄色
+                        3: 'danger',    // Float - 红色
+                        4: 'info',      // Double - 蓝色
+                        5: 'primary'    // String - 主色
+                    };
+                    return tagTypes[dataType] || '';
+                };
                 // 表单验证规则
                 const svidRules = {
                     svidId: [
@@ -1029,7 +1060,17 @@
                         const url = isAdd ? '/IdMapping/svids' : `/IdMapping/svids/${svidForm.svidId}`;
                         const method = isAdd ? 'post' : 'put';
                         console.log(svidForm);
-                        const result = await api[method](url, svidForm);
+                        // 转换为后端期望的格式
+                        const payload = {
+                            SvidId: svidForm.svidId,
+                            SvidName: svidForm.svidName,
+                            PlcAddress: svidForm.plcAddress,
+                            DataType: parseInt(svidForm.dataType), // 确保是数字
+                            Units: svidForm.units,
+                            Description: svidForm.description,
+                            IsActive: svidForm.isActive
+                        };
+                        const result = await api[method](url, payload);
                         if (result.success) {
                             ElMessage.success(result.message);
                             svidDialogVisible.value = false;
@@ -1340,7 +1381,7 @@
                     };
                     return types[category] || '';
                 };
-
+                        
                 // 生命周期
                 onMounted(() => {
                     console.log('IdMapping页面初始化');
@@ -1429,7 +1470,10 @@
                     getPriorityColor,
                     getPriorityName,
                     getCategoryName,
-                    getCategoryType
+                    getCategoryType,
+                        // 数据类型相关方法 ← 添加这两行
+                    getDataTypeName,
+                    getDataTypeTagType
                 };
             }
         }).use(ElementPlus, {
