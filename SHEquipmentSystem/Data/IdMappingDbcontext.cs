@@ -3,6 +3,7 @@ using DiceEquipmentSystem.Core.Interfaces;
 using DiceEquipmentSystem.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SHEquipmentSystem.Data.Entities;
 using System;
 using System.Linq;
 using System.Reflection;

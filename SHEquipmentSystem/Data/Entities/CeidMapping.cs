@@ -7,7 +7,7 @@ using DiceEquipmentSystem.Core.Enums;
 namespace DiceEquipmentSystem.Data.Entities
 {
     /// <summary>
-    /// CEID映射实体
+    /// CEID映射实体 事件
     /// </summary>
     public class CeidMapping : IAuditableEntity
     {

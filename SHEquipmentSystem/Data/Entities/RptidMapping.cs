@@ -1,5 +1,6 @@
 ﻿// 文件路径: src/DiceEquipmentSystem/Data/Entities/RptidMapping.cs
 using DiceEquipmentSystem.Core.Interfaces;
+using SHEquipmentSystem.Data.Entities;
 using SHEquipmentSystem.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -37,23 +38,5 @@ namespace DiceEquipmentSystem.Data.Entities
         public string? UpdatedBy { get; set; }
     }
 
-    /// <summary>
-    /// RPTID-SVID关联映射实体
-    /// </summary>
-    public class RptidSvidMapping : IEntity
-    {
-        public int Id { get; set; }
-
-        [Required]
-        public int RptidMappingId { get; set; }
-
-        [Required]
-        public uint SvidId { get; set; }
-
-        public int SortOrder { get; set; } = 0;
-
-        // 导航属性
-        public virtual RptidMapping RptidMapping { get; set; } = null!;
-        public virtual SvidMapping SvidMapping { get; set; } = null!;
-    }
+ 
 }

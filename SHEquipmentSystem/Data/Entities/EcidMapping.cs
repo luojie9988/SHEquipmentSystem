@@ -7,7 +7,7 @@ using DiceEquipmentSystem.PLC.Models;
 namespace DiceEquipmentSystem.Data.Entities
 {
     /// <summary>
-    /// ECID映射实体
+    /// ECID映射实体 设备常量
     /// </summary>
     public class EcidMapping : IAuditableEntity
     {

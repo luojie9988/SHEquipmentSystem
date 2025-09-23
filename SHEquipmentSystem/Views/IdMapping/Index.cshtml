@@ -9,16 +9,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ID映射配置管理 - SH设备配置系统</title>
 
-    <!-- Element Plus CSS - 使用本地文件 -->
+    <!-- Element Plus CSS -->
     <link rel="stylesheet" href="~/lib/element-plus/index.css">
-
-    <!-- JavaScript 依赖 - 使用本地文件 -->
+    <!-- JavaScript 依赖 -->
     <script src="~/lib/vue/vue.global.js"></script>
     <script src="~/lib/element-plus/index.full.js"></script>
     <script src="~/lib/element-plus-icons-vue/index.iife.min.js"></script>
     <script src="~/lib/axios/axios.min.js"></script>
-    <script src="~/lib/element-plus/locale/zh-cn.min.js"></script>
-
     <!-- 自定义样式 -->
     <style>
         * {
@@ -83,7 +80,7 @@
         .main-tabs {
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
         }
 
         .tab-content {
@@ -91,132 +88,94 @@
         }
 
         .search-bar {
-            margin-bottom: 20px;
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .table-container {
             margin-bottom: 20px;
+            gap: 15px;
         }
 
-        .loading-container {
-            text-align: center;
-            padding: 100px;
-        }
-
-        .error-container {
-            text-align: center;
-            padding: 50px;
-            color: #f56c6c;
-        }
-
-        .status-tag {
-            font-size: 12px;
+        .search-input {
+            flex: 1;
+            max-width: 400px;
         }
 
         .action-buttons {
             display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
+            gap: 10px;
         }
+
+        .priority-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .priority-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .category-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-section {
+            margin-bottom: 24px;
+        }
+
+            .form-section h4 {
+                margin-bottom: 16px;
+                color: #303133;
+                border-bottom: 1px solid #ebeef5;
+                padding-bottom: 8px;
+            }
 
         .statistics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .nav-button {
-            margin-bottom: 10px;
-        }
-
-        /* 响应式设计 */
-        @@media (max-width: 768px) {
-            .main-container
-
-        {
-            padding: 10px;
-        }
-
-        .header-content {
-            flex-direction: column;
-            gap: 15px;
-            align-items: stretch;
-        }
-
-        .operation-buttons {
-            justify-content: center;
-        }
-
-        .search-bar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .action-buttons {
-            justify-content: center;
-        }
-
-        }
-
-        /* 加载状态 */
-        [v-cloak] {
-            display: none !important;
+            gap: 20px;
+            margin-bottom: 24px;
         }
     </style>
 </head>
 <body>
-    <!-- 页面头部 -->
-    <div class="header">
-        <h1>
-            <el-button link onclick="window.history.back()" style="color: white; margin-right: 10px;">
-                <el-icon><ArrowLeft /></el-icon>
-                返回
-            </el-button>
-            🔧 ID映射配置管理
-        </h1>
-    </div>
+    <div id="app">
+        <!-- 页面头部 -->
+        <div class="header">
+            <h1>
+                <el-icon><Operation /></el-icon>
+                ID映射配置管理
+            </h1>
+        </div>
 
-    <div class="main-container">
-        <div id="app" v-cloak>
-            <!-- 页面头部操作区 -->
+        <!-- 主要内容区 -->
+        <div class="main-container">
+            <!-- 页面头部卡片 -->
             <el-card class="header-card">
                 <div class="header-content">
                     <h2 class="header-title">
-                        <el-icon><Setting /></el-icon>
+                        <el-icon><Grid /></el-icon>
                         SECS/GEM ID映射配置
                     </h2>
                     <div class="operation-buttons">
-                        <el-button v-on:click="exportConfig" :loading="exporting" type="success">
+                        <el-button type="primary" v-on:click="refreshAll" :loading="loading">
+                            <el-icon><Refresh /></el-icon>
+                            刷新全部
+                        </el-button>
+                        <el-button v-on:click="exportConfig" :loading="exporting">
                             <el-icon><Download /></el-icon>
                             导出配置
-                        </el-button>
-                        <el-button v-on:click="showImportDialog" type="warning">
-                            <el-icon><Upload /></el-icon>
-                            导入配置
-                        </el-button>
-                        <el-button v-on:click="refreshAll" :loading="loading" type="primary">
-                            <el-icon><Refresh /></el-icon>
-                            刷新数据
                         </el-button>
                     </div>
                 </div>
             </el-card>
 
-            <!-- 统计信息卡片 -->
-            <el-card style="margin-bottom: 20px;" v-if="showStatistics">
-                <template #header>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 600;">配置统计信息</span>
-                        <el-button text v-on:click="showStatistics = false">
-                            <el-icon><Close /></el-icon>
-                        </el-button>
-                    </div>
-                </template>
+            <!-- 统计信息 -->
+            <el-card class="header-card">
                 <div class="statistics-grid">
                     <el-statistic title="状态变量 (SVID)" :value="svidMappings.length" suffix="个">
                         <template #title>
@@ -267,167 +226,46 @@
                         <div class="tab-content">
                             <div class="search-bar">
                                 <el-input v-model="svidSearchTerm"
-                                          placeholder="搜索SVID名称或描述..."
-                                          style="width: 300px"
+                                          placeholder="搜索SVID ID、名称或PLC地址..."
                                           clearable
+                                          class="search-input"
                                           v-on:input="searchSvids">
                                     <template #prefix>
                                         <el-icon><Search /></el-icon>
                                     </template>
                                 </el-input>
-                                <el-button type="primary" v-on:click="showAddSvidDialog">
-                                    <el-icon><Plus /></el-icon>
-                                    添加SVID映射
-                                </el-button>
+                                <div class="action-buttons">
+                                    <el-button type="primary" v-on:click="showAddSvidDialog">
+                                        <el-icon><Plus /></el-icon>
+                                        添加SVID
+                                    </el-button>
+                                </div>
                             </div>
 
-                            <div class="table-container">
-                             
-                                <el-table :data="svidMappings"
-                                          v-loading="loading"
-                                          border
-                                          height="100%"
-                                          style="width: 100%"
-                                          empty-text="暂无SVID映射数据">
-                                    <el-table-column prop="svidId" label="SVID ID" width="150" sortable></el-table-column>
-                                    <el-table-column prop="svidName" label="SVID名称" min-width="150" show-overflow-tooltip></el-table-column> 
-                                    <el-table-column prop="plcAddress" label="PLC地址" width="120"></el-table-column>
-                                    <el-table-column prop="dataTypeName" label="数据类型" width="100"></el-table-column>
-                                    <el-table-column prop="units" label="单位" width="80"></el-table-column>
-                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
-                                    <el-table-column prop="isActive" label="状态" width="80">
+                            <el-table :data="filteredSvidMappings"
+                                      border
+                                      style="width: 100%"
+                                      v-loading="loading">
+                                <el-table-column prop="svidId" label="SVID ID" width="100" sortable></el-table-column>
+                                <el-table-column prop="svidName" label="变量名称" min-width="150"></el-table-column>
+                                <el-table-column prop="plcAddress" label="PLC地址" width="120"></el-table-column>
+                                <el-table-column prop="dataType" label="数据类型" width="100"></el-table-column>
+                                <el-table-column prop="units" label="单位" width="80"></el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="150" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="isActive" label="状态" width="100">
                                     <template #default="scope">
-                                            <el-tag :type="scope.row.isActive ? 'success' : 'info'" class="status-tag">
-                                                {{ scope.row.isActive ? '启用' : '禁用' }}
-                                            </el-tag>
-                                        </template>
-                                    </el-table-column>
-                                    <el-table-column label="操作" width="180" fixed="right">
-                                        <template #default="scope">
-                                            <div class="action-buttons">
-                                                <el-button size="small" type="primary" v-on:click="editSvid(scope.row)">
-                                                    编辑
-                                                </el-button>
-                                                <el-button size="small" type="danger" v-on:click="deleteSvid(scope.row)">
-                                                    删除
-                                                </el-button>
-                                            </div>
-                                        </template>
-                                    </el-table-column>
-                                </el-table>
-                            </div>
-                        </div>
-                    </el-tab-pane>
-
-                    <!-- CEID映射管理 -->
-                    <el-tab-pane name="ceid">
-                        <template #label>
-                            <span style="display: flex; align-items: center; gap: 5px;">
-                                <el-icon><Bell /></el-icon>
-                                事件 (CEID)
-                            </span>
-                        </template>
-                        <div class="tab-content">
-                            <div class="search-bar">
-                                <el-button type="primary" v-on:click="showAddCeidDialog">
-                                    <el-icon><Plus /></el-icon>
-                                    添加CEID映射
-                                </el-button>
-                            </div>
-
-                            <div class="table-container">
-                                <el-table :data="ceidMappings"
-                                          v-loading="loading"
-                                          border
-                                          stripe
-                                          style="width: 100%"
-                                          empty-text="暂无CEID映射数据">
-                                    <el-table-column prop="ceidId" label="CEID ID" width="150" sortable></el-table-column>
-                                    <el-table-column prop="eventName" label="事件名称" min-width="150" show-overflow-tooltip></el-table-column>
-                                    <el-table-column prop="triggerAddress" label="触发地址" width="120"></el-table-column>
-                                    <el-table-column prop="triggerTypeName" label="触发类型" width="120"></el-table-column>
-                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
-                                    <el-table-column prop="isEnabled" label="状态" width="80">
-                                        <template #default="scope">
-                                            <el-tag :type="scope.row.isEnabled ? 'success' : 'info'" class="status-tag">
-                                                {{ scope.row.isEnabled ? '启用' : '禁用' }}
-                                            </el-tag>
-                                        </template>
-                                    </el-table-column>
-                                    <el-table-column label="操作" width="180" fixed="right">
-                                        <template #default="scope">
-                                            <div class="action-buttons">
-                                                <el-button size="small" type="primary" v-on:click="editCeid(scope.row)">
-                                                    编辑
-                                                </el-button>
-                                                <el-button size="small" type="danger" v-on:click="deleteCeid(scope.row)">
-                                                    删除
-                                                </el-button>
-                                            </div>
-                                        </template>
-                                    </el-table-column>
-                                </el-table>
-                            </div>
-                        </div>
-                    </el-tab-pane>
-
-                    <!-- RPTID映射管理 -->
-                    <el-tab-pane name="rptid">
-                        <template #label>
-                            <span style="display: flex; align-items: center; gap: 5px;">
-                                <el-icon><Document /></el-icon>
-                                报告 (RPTID)
-                            </span>
-                        </template>
-                        <div class="tab-content">
-                            <div class="search-bar">
-                                <el-button type="primary" v-on:click="showAddRptidDialog">
-                                    <el-icon><Plus /></el-icon>
-                                    添加RPTID映射
-                                </el-button>
-                            </div>
-
-                            <div class="table-container">
-                                <el-table :data="rptidMappings"
-                                          v-loading="loading"
-                                          border
-                                          stripe
-                                          style="width: 100%"
-                                          empty-text="暂无RPTID映射数据">
-                                    <el-table-column prop="rptidId" label="RPTID ID" width="150" sortable></el-table-column>
-                                    <el-table-column prop="reportName" label="报告名称" min-width="150" show-overflow-tooltip></el-table-column>
-                                    <el-table-column label="包含SVID" min-width="200">
-                                        <template #default="scope">
-                                            <el-tag v-for="item in scope.row.svidItems"
-                                                    :key="item.svidId"
-                                                    size="small"
-                                                    style="margin-right: 5px;">
-                                                {{ item.svidId }}
-                                            </el-tag>
-                                        </template>
-                                    </el-table-column>
-                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
-                                    <el-table-column prop="isActive" label="状态" width="80">
-                                        <template #default="scope">
-                                            <el-tag :type="scope.row.isActive ? 'success' : 'info'" class="status-tag">
-                                                {{ scope.row.isActive ? '启用' : '禁用' }}
-                                            </el-tag>
-                                        </template>
-                                    </el-table-column>
-                                    <el-table-column label="操作" width="180" fixed="right">
-                                        <template #default="scope">
-                                            <div class="action-buttons">
-                                                <el-button size="small" type="primary" v-on:click="editRptid(scope.row)">
-                                                    编辑
-                                                </el-button>
-                                                <el-button size="small" type="danger" v-on:click="deleteRptid(scope.row)">
-                                                    删除
-                                                </el-button>
-                                            </div>
-                                        </template>
-                                    </el-table-column>
-                                </el-table>
-                            </div>
+                                        <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
+                                            {{ scope.row.isActive ? '启用' : '禁用' }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="180">
+                                    <template #default="scope">
+                                        <el-button size="small" v-on:click="editSvid(scope.row)">编辑</el-button>
+                                        <el-button size="small" type="danger" v-on:click="deleteSvid(scope.row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
                         </div>
                     </el-tab-pane>
 
@@ -441,251 +279,421 @@
                         </template>
                         <div class="tab-content">
                             <div class="search-bar">
-                                <el-button type="primary" v-on:click="showAddAlidDialog">
-                                    <el-icon><Plus /></el-icon>
-                                    添加ALID映射
-                                </el-button>
+                                <el-input v-model="alidSearchTerm"
+                                          placeholder="搜索ALID ID、报警名称..."
+                                          clearable
+                                          class="search-input"
+                                          v-on:input="searchAlids">
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                                <div class="action-buttons">
+                                    <el-button type="primary" v-on:click="showAddAlidDialog">
+                                        <el-icon><Plus /></el-icon>
+                                        添加ALID
+                                    </el-button>
+                                </div>
                             </div>
 
-                            <div class="table-container">
-                                <el-table :data="alidMappings"
-                                          v-loading="loading"
-                                          border
-                                          stripe
-                                          style="width: 100%"
-                                          empty-text="暂无ALID映射数据">
-                                    <el-table-column prop="alidId" label="ALID ID" width="150" sortable></el-table-column>
-                                    <el-table-column prop="alarmName" label="报警名称" min-width="150" show-overflow-tooltip ></el-table-column> 
-                                    <el-table-column prop="plcAddress" label="PLC地址" width="120" ></el-table-column> 
-                                    <el-table-column prop="priorityName" label="优先级" width="100"></el-table-column>
-                                    <el-table-column prop="categoryName" label="分类" width="100"></el-table-column>
-                                    <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
-                                    <el-table-column prop="isMonitored" label="状态" width="80">
-                                        <template #default="scope">
-                                            <el-tag :type="scope.row.isMonitored ? 'success' : 'info'" class="status-tag">
-                                                {{ scope.row.isMonitored ? '监控中' : '已停止' }}
-                                            </el-tag>
-                                        </template>
-                                    </el-table-column>
-                                    <el-table-column label="操作" width="180" fixed="right">
-                                        <template #default="scope">
-                                            <div class="action-buttons">
-                                                <el-button size="small" type="primary" v-on:click="editAlid(scope.row)">
-                                                    编辑
-                                                </el-button>
-                                                <el-button size="small" type="danger" v-on:click="deleteAlid(scope.row)">
-                                                    删除
-                                                </el-button>
-                                            </div>
-                                        </template>
-                                    </el-table-column>
-                                </el-table>
+                            <el-table :data="filteredAlidMappings"
+                                      border
+                                      style="width: 100%"
+                                      v-loading="loading">
+                                <el-table-column prop="alidId" label="ALID ID" width="100" sortable></el-table-column>
+                                <el-table-column prop="alarmName" label="报警名称" min-width="150"></el-table-column>
+                                <el-table-column prop="triggerAddress" label="触发地址" width="120"></el-table-column>
+                                <el-table-column prop="priority" label="优先级" width="100">
+                                    <template #default="scope">
+                                        <div class="priority-tag">
+                                            <div class="priority-dot" :style="{ backgroundColor: getPriorityColor(scope.row.priority) }"></div>
+                                            {{ getPriorityName(scope.row.priority) }}
+                                        </div>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="category" label="分类" width="100">
+                                    <template #default="scope">
+                                        <el-tag :type="getCategoryType(scope.row.category)">
+                                            {{ getCategoryName(scope.row.category) }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="isMonitored" label="监控状态" width="100">
+                                    <template #default="scope">
+                                        <el-switch v-model="scope.row.isMonitored"
+                                                   v-on:change="toggleAlidMonitoring(scope.row)">
+                                        </el-switch>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="150" show-overflow-tooltip></el-table-column>
+                                <el-table-column label="操作" width="180">
+                                    <template #default="scope">
+                                        <el-button size="small" v-on:click="editAlid(scope.row)">编辑</el-button>
+                                        <el-button size="small" type="danger" v-on:click="deleteAlid(scope.row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- CEID映射管理 -->
+                    <el-tab-pane name="ceid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><Bell /></el-icon>
+                                事件 (CEID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-input v-model="ceidSearchTerm"
+                                          placeholder="搜索CEID ID、事件名称..."
+                                          clearable
+                                          class="search-input">
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                                <div class="action-buttons">
+                                    <el-button type="primary" v-on:click="showAddCeidDialog">
+                                        <el-icon><Plus /></el-icon>
+                                        添加CEID
+                                    </el-button>
+                                </div>
                             </div>
+
+                            <el-table :data="filteredCeidMappings"
+                                      border
+                                      style="width: 100%"
+                                      v-loading="loading">
+                                <el-table-column prop="ceidId" label="CEID ID" width="100" sortable></el-table-column>
+                                <el-table-column prop="eventName" label="事件名称" min-width="150"></el-table-column>
+                                <el-table-column prop="triggerAddress" label="触发地址" width="120"></el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="isEnabled" label="状态" width="100">
+                                    <template #default="scope">
+                                        <el-tag :type="scope.row.isEnabled ? 'success' : 'danger'">
+                                            {{ scope.row.isEnabled ? '启用' : '禁用' }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="180">
+                                    <template #default="scope">
+                                        <el-button size="small" v-on:click="editCeid(scope.row)">编辑</el-button>
+                                        <el-button size="small" type="danger" v-on:click="deleteCeid(scope.row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- RPTID映射管理 -->
+                    <el-tab-pane name="rptid">
+                        <template #label>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                <el-icon><Document /></el-icon>
+                                报告 (RPTID)
+                            </span>
+                        </template>
+                        <div class="tab-content">
+                            <div class="search-bar">
+                                <el-input v-model="rptidSearchTerm"
+                                          placeholder="搜索RPTID ID、报告名称..."
+                                          clearable
+                                          class="search-input">
+                                    <template #prefix>
+                                        <el-icon><Search /></el-icon>
+                                    </template>
+                                </el-input>
+                                <div class="action-buttons">
+                                    <el-button type="primary" v-on:click="showAddRptidDialog">
+                                        <el-icon><Plus /></el-icon>
+                                        添加RPTID
+                                    </el-button>
+                                </div>
+                            </div>
+
+                            <el-table :data="filteredRptidMappings"
+                                      border
+                                      style="width: 100%"
+                                      v-loading="loading">
+                                <el-table-column prop="rptidId" label="RPTID ID" width="100" sortable></el-table-column>
+                                <el-table-column prop="reportName" label="报告名称" min-width="150"></el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="isActive" label="状态" width="100">
+                                    <template #default="scope">
+                                        <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
+                                            {{ scope.row.isActive ? '启用' : '禁用' }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="操作" width="180">
+                                    <template #default="scope">
+                                        <el-button size="small" v-on:click="editRptid(scope.row)">编辑</el-button>
+                                        <el-button size="small" type="danger" v-on:click="deleteRptid(scope.row)">删除</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
                         </div>
                     </el-tab-pane>
                 </el-tabs>
             </el-card>
+        </div>
 
-            <!-- SVID添加/编辑对话框 -->
-            <el-dialog v-model="svidDialogVisible"
-                       :title="svidDialogMode === 'add' ? '添加SVID映射' : '编辑SVID映射'"
-                       width="600px">
-                <el-form :model="svidForm" :rules="svidRules" ref="svidFormRef" label-width="120px">
+        <!-- SVID对话框 -->
+        <el-dialog v-model="svidDialogVisible"
+                   :title="svidDialogMode === 'add' ? '添加SVID映射' : '编辑SVID映射'"
+                   width="600px">
+            <el-form :model="svidForm" :rules="svidRules" ref="svidFormRef" label-width="120px">
+                <div class="form-section">
+                    <h4>基本信息</h4>
                     <el-form-item label="SVID ID" prop="svidId">
                         <el-input-number v-model="svidForm.svidId"
-                                         :min="10000"
-                                         :max="10099"
+                                         :min="10000" :max="10099"
                                          :disabled="svidDialogMode === 'edit'"
-                                         style="width: 100%" />
+                                         style="width: 100%">
+                        </el-input-number>
                     </el-form-item>
-                    <el-form-item label="SVID名称" prop="svidName">
-                        <el-input v-model="svidForm.svidName" placeholder="请输入SVID名称" />
+                    <el-form-item label="变量名称" prop="svidName">
+                        <el-input v-model="svidForm.svidName" placeholder="如：设备状态"></el-input>
                     </el-form-item>
                     <el-form-item label="PLC地址" prop="plcAddress">
-                        <div style="width: 100%;">
-                            <el-input v-model="svidForm.plcAddress" placeholder="如: D100, M10" />
-                            <el-button size="small"
-                                       type="primary"
-                                       v-on:click="validatePlcAddress"
-                                       :loading="validatingAddress"
-                                       style="margin-top: 5px;">
-                                验证地址
-                            </el-button>
-                        </div>
+                        <el-input v-model="svidForm.plcAddress"
+                                  placeholder="如：D100、M10、X1.0"
+                                  v-on:blur="validatePlcAddress">
+                        </el-input>
                     </el-form-item>
                     <el-form-item label="数据类型" prop="dataType">
-                        <el-select v-model="svidForm.dataType" placeholder="请选择数据类型" style="width: 100%">
-                            <el-option label="Bool" :value="0" />
-                            <el-option label="Int16" :value="1" />
-                            <el-option label="Int32" :value="2" />
-                            <el-option label="Float" :value="3" />
-                            <el-option label="Double" :value="4" />
-                            <el-option label="String" :value="5" />
+                        <el-select v-model="svidForm.dataType" style="width: 100%">
+                            <el-option label="BOOLEAN" value=0></el-option>
+                            <el-option label="Int16 (无符号2字节)" value=1></el-option>
+                            <el-option label="Int32 (无符号4字节)" value=2></el-option>
+                            <el-option label="Float (浮点)" value=3></el-option>
+                            <el-option label="Double (双精度浮点数)" value=4></el-option>
+                            <el-option label="String (字符串)" value=5></el-option>
                         </el-select>
                     </el-form-item>
-                    <el-form-item label="单位" prop="units">
-                        <el-input v-model="svidForm.units" placeholder="如: °C, mm, count" />
+                </div>
+
+                <div class="form-section">
+                    <h4>详细信息</h4>
+                    <el-form-item label="单位">
+                        <el-input v-model="svidForm.units" placeholder="如：℃、rpm、%"></el-input>
                     </el-form-item>
-                    <el-form-item label="描述" prop="description">
+                    <el-form-item label="描述">
                         <el-input v-model="svidForm.description"
                                   type="textarea"
                                   :rows="3"
-                                  placeholder="请输入描述信息" />
+                                  placeholder="变量描述和用途说明">
+                        </el-input>
                     </el-form-item>
-                    <el-form-item label="状态" prop="isActive">
-                        <el-switch v-model="svidForm.isActive" />
+                    <el-form-item label="状态">
+                        <el-switch v-model="svidForm.isActive"
+                                   active-text="启用"
+                                   inactive-text="禁用">
+                        </el-switch>
                     </el-form-item>
-                </el-form>
-                <template #footer>
-                    <div>
-                        <el-button v-on:click="svidDialogVisible = false">取消</el-button>
-                        <el-button type="primary" v-on:click="saveSvid" :loading="saving">保存</el-button>
-                    </div>
-                </template>
-            </el-dialog>
-            <!-- ALID添加/编辑对话框 -->
-            <el-dialog v-model="alidDialogVisible"
-                       :title="alidDialogMode === 'add' ? '添加ALID映射' : '编辑ALID映射'"
-                       width="800px"
-                       :close-on-click-modal="false">
-                <el-form :model="alidForm"
-                         :rules="alidRules"
-                         ref="alidFormRef"
-                         label-width="120px"
-                         label-position="right">
-                    <el-row :gutter="16">
-                        <el-col :span="12">
-                            <el-form-item label="ALID ID" prop="alidId">
-                                <el-input-number v-model="alidForm.alidId"
-                                                 :min="12000"
-                                                 :max="12095"
-                                                 :disabled="alidDialogMode === 'edit'"
-                                                 placeholder="12000-12095"
-                                                 style="width: 100%" />
-                            </el-form-item>
-                        </el-col>
-                        <el-col :span="12">
-                            <el-form-item label="报警名称" prop="alarmName">
-                                <el-input v-model="alidForm.alarmName"
-                                          placeholder="请输入报警名称"
-                                          maxlength="100"
-                                          show-word-limit />
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
+                </div>
+            </el-form>
 
-                    <el-row :gutter="16">
-                        <el-col :span="12">
-                            <el-form-item label="PLC触发地址">
-                                <el-input v-model="alidForm.triggerAddress"
-                                          placeholder="如: M1000, D100"
-                                          maxlength="50" />
-                            </el-form-item>
-                        </el-col>
-                        <el-col :span="12">
-                            <el-form-item label="报警优先级" prop="priority">
-                                <el-select v-model="alidForm.priority" style="width: 100%">
-                                    <el-option v-for="option in priorityOptions"
-                                               :key="option.value"
-                                               :label="option.label"
-                                               :value="option.value">
-                                        <span style="float: left">{{ option.label }}</span>
-                                        <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                                            <el-tag :color="option.color" size="small">{{ option.value }}</el-tag>
-                                        </span>
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button v-on:click="svidDialogVisible = false">取消</el-button>
+                    <el-button type="primary" v-on:click="saveSvid" :loading="saving">
+                        {{ svidDialogMode === 'add' ? '添加' : '保存' }}
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
 
-                    <el-row :gutter="16">
-                        <el-col :span="12">
-                            <el-form-item label="报警分类" prop="category">
-                                <el-select v-model="alidForm.category" style="width: 100%">
-                                    <el-option v-for="option in categoryOptions"
-                                               :key="option.value"
-                                               :label="option.label"
-                                               :value="option.value">
-                                        <span style="float: left">{{ option.label }}</span>
-                                        <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                                            <el-tag :color="option.color" size="small">{{ option.value }}</el-tag>
-                                        </span>
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
-                        </el-col>
-                        <el-col :span="12">
-                            <el-form-item label="监控设置">
-                                <el-space>
-                                    <el-switch v-model="alidForm.isMonitored"
-                                               active-text="启用监控"
-                                               inactive-text="禁用监控" />
-                                    <el-switch v-model="alidForm.autoClear"
-                                               active-text="自动清除"
-                                               inactive-text="手动清除" />
-                                </el-space>
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
+        <!-- ALID对话框 -->
+        <el-dialog v-model="alidDialogVisible"
+                   :title="alidDialogMode === 'add' ? '添加ALID映射' : '编辑ALID映射'"
+                   width="600px">
+            <el-form :model="alidForm" :rules="alidRules" ref="alidFormRef" label-width="120px">
+                <div class="form-section">
+                    <h4>基本信息</h4>
+                    <el-form-item label="ALID ID" prop="alidId">
+                        <el-input-number v-model="alidForm.alidId"
+                                         :min="50001" :max="50099"
+                                         :disabled="alidDialogMode === 'edit'"
+                                         style="width: 100%">
+                        </el-input-number>
+                    </el-form-item>
+                    <el-form-item label="报警名称" prop="alarmName">
+                        <el-input v-model="alidForm.alarmName" placeholder="如：温度超限报警"></el-input>
+                    </el-form-item>
+                    <el-form-item label="触发地址" prop="triggerAddress">
+                        <el-input v-model="alidForm.triggerAddress" placeholder="如：M100"></el-input>
+                    </el-form-item>
+                    <el-form-item label="优先级" prop="priority">
+                        <el-select v-model="alidForm.priority" style="width: 100%">
+                            <el-option :value="1" label="低">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: #909399;"></div>
+                                    低
+                                </div>
+                            </el-option>
+                            <el-option :value="2" label="中">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: #e6a23c;"></div>
+                                    中
+                                </div>
+                            </el-option>
+                            <el-option :value="3" label="高">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: #f56c6c;"></div>
+                                    高
+                                </div>
+                            </el-option>
+                            <el-option :value="4" label="紧急">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f;"></div>
+                                    紧急
+                                </div>
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="分类" prop="category">
+                        <el-select v-model="alidForm.category" style="width: 100%">
+                            <el-option :value="1" label="系统报警"></el-option>
+                            <el-option :value="2" label="硬件报警"></el-option>
+                            <el-option :value="3" label="工艺报警"></el-option>
+                            <el-option :value="4" label="安全报警"></el-option>
+                            <el-option :value="5" label="维护报警"></el-option>
+                        </el-select>
+                    </el-form-item>
+                </div>
 
-                    <el-form-item label="报警描述">
+                <div class="form-section">
+                    <h4>详细信息</h4>
+                    <el-form-item label="描述">
                         <el-input v-model="alidForm.description"
                                   type="textarea"
-                                  :rows="2"
-                                  placeholder="请输入报警描述"
-                                  maxlength="500"
-                                  show-word-limit />
+                                  :rows="3"
+                                  placeholder="报警详细描述">
+                        </el-input>
                     </el-form-item>
-
                     <el-form-item label="处理建议">
                         <el-input v-model="alidForm.handlingSuggestion"
                                   type="textarea"
                                   :rows="3"
-                                  placeholder="请输入处理建议"
-                                  maxlength="1000"
-                                  show-word-limit />
+                                  placeholder="报警处理建议和步骤">
+                        </el-input>
                     </el-form-item>
-
-                    <el-form-item label="报警文本模板">
-                        <el-input v-model="alidForm.alarmTextTemplate"
-                                  placeholder="支持变量: {timestamp}, {alarmId}, {category}, {priority}"
-                                  maxlength="200"
-                                  show-word-limit />
-                        <div style="margin-top: 5px; font-size: 12px; color: #909399;">
-                            支持的变量：{timestamp} - 时间戳，{alarmId} - 报警ID，{category} - 分类，{priority} - 优先级
-                        </div>
+                    <el-form-item label="监控状态">
+                        <el-switch v-model="alidForm.isMonitored"
+                                   active-text="启用监控"
+                                   inactive-text="禁用监控">
+                        </el-switch>
                     </el-form-item>
-                </el-form>
+                    <el-form-item label="自动清除">
+                        <el-switch v-model="alidForm.autoClear"
+                                   active-text="自动清除"
+                                   inactive-text="手动清除">
+                        </el-switch>
+                    </el-form-item>
+                </div>
+            </el-form>
 
-                <template #footer>
-                    <span class="dialog-footer">
-                        <el-button v-on:click="alidDialogVisible = false">取消</el-button>
-                        <el-button type="primary" v-on:click="saveAlid" :loading="saving">
-                            {{ alidDialogMode === 'add' ? '创建' : '保存' }}
-                        </el-button>
-                    </span>
-                </template>
-            </el-dialog>
-            <!-- 导入对话框 -->
-            <el-dialog v-model="importDialogVisible" title="导入配置" width="600px">
-                <el-input v-model="importData"
-                          type="textarea"
-                          :rows="10"
-                          placeholder="请粘贴配置JSON数据" />
-                <template #footer>
-                    <div>
-                        <el-button v-on:click="importDialogVisible = false">取消</el-button>
-                        <el-button type="primary" v-on:click="importConfig" :loading="importing">导入</el-button>
-                    </div>
-                </template>
-            </el-dialog>
-        </div>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button v-on:click="alidDialogVisible = false">取消</el-button>
+                    <el-button type="primary" v-on:click="saveAlid" :loading="saving">
+                        {{ alidDialogMode === 'add' ? '添加' : '保存' }}
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- CEID对话框 -->
+        <el-dialog v-model="ceidDialogVisible"
+                   :title="ceidDialogMode === 'add' ? '添加CEID映射' : '编辑CEID映射'"
+                   width="600px">
+            <el-form :model="ceidForm" :rules="ceidRules" ref="ceidFormRef" label-width="120px">
+                <el-form-item label="CEID ID" prop="ceidId">
+                    <el-input-number v-model="ceidForm.ceidId"
+                                     :min="0001" :max="30099"
+                                     :disabled="ceidDialogMode === 'edit'"
+                                     style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+                <el-form-item label="事件名称" prop="eventName">
+                    <el-input v-model="ceidForm.eventName" placeholder="如：设备启动"></el-input>
+                </el-form-item>
+                <el-form-item label="触发地址" prop="triggerAddress">
+                    <el-input v-model="ceidForm.triggerAddress" placeholder="如：M200"></el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                    <el-input v-model="ceidForm.description"
+                              type="textarea"
+                              :rows="3"
+                              placeholder="事件描述和触发条件">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="状态">
+                    <el-switch v-model="ceidForm.isEnabled"
+                               active-text="启用"
+                               inactive-text="禁用">
+                    </el-switch>
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button v-on:click="ceidDialogVisible = false">取消</el-button>
+                    <el-button type="primary" v-on:click="saveCeid" :loading="saving">
+                        {{ ceidDialogMode === 'add' ? '添加' : '保存' }}
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- RPTID对话框 -->
+        <el-dialog v-model="rptidDialogVisible"
+                   :title="rptidDialogMode === 'add' ? '添加RPTID映射' : '编辑RPTID映射'"
+                   width="600px">
+            <el-form :model="rptidForm" :rules="rptidRules" ref="rptidFormRef" label-width="120px">
+                <el-form-item label="RPTID ID" prop="rptidId">
+                    <el-input-number v-model="rptidForm.rptidId"
+                                     :min="20001" :max="20099"
+                                     :disabled="rptidDialogMode === 'edit'"
+                                     style="width: 100%">
+                    </el-input-number>
+                </el-form-item>
+                <el-form-item label="报告名称" prop="reportName">
+                    <el-input v-model="rptidForm.reportName" placeholder="如：设备状态报告"></el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                    <el-input v-model="rptidForm.description"
+                              type="textarea"
+                              :rows="3"
+                              placeholder="报告内容和用途描述">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="状态">
+                    <el-switch v-model="rptidForm.isActive"
+                               active-text="启用"
+                               inactive-text="禁用">
+                    </el-switch>
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button v-on:click="rptidDialogVisible = false">取消</el-button>
+                    <el-button type="primary" v-on:click="saveRptid" :loading="saving">
+                        {{ rptidDialogMode === 'add' ? '添加' : '保存' }}
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 
-    <script>
-        const { createApp, ref, reactive, onMounted, getCurrentInstance } = Vue;
+    <script type="module">
+        const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
+        // const ElementPlusLocaleZhCn = ElementPlusLocaleZhCn || {};
 
         createApp({
             setup() {
@@ -693,218 +701,30 @@
                 const activeTab = ref('svid');
                 const loading = ref(false);
                 const exporting = ref(false);
-                const importing = ref(false);
                 const saving = ref(false);
-                const validatingAddress = ref(false);
-                const showStatistics = ref(true);
 
-                // 数据列表
+                // 数据
                 const svidMappings = ref([]);
+                const alidMappings = ref([]);
                 const ceidMappings = ref([]);
                 const rptidMappings = ref([]);
-                const alidMappings = ref([]);
-                        // 优先级选项
-        const priorityOptions = [
-            { value: 1, label: '低优先级', color: '#909399' },
-            { value: 2, label: '中优先级', color: '#e6a23c' },
-            { value: 3, label: '高优先级', color: '#f56c6c' },
-            { value: 4, label: '紧急', color: '#ff4d4f' }
-                ];// 分类选项
-        const categoryOptions = [
-            { value: 1, label: '系统报警', color: '#409eff' },
-            { value: 2, label: '硬件报警', color: '#f56c6c' },
-            { value: 3, label: '工艺报警', color: '#e6a23c' },
-            { value: 4, label: '安全报警', color: '#ff4d4f' },
-            { value: 5, label: '维护报警', color: '#909399' }
-                ];// ============= ALID 操作方法 =============
-        const showAddAlidDialog = () => {
-            alidDialogMode.value = 'add';
-            resetAlidForm();
-            alidDialogVisible.value = true;
-                };
-                const editAlid = (row) => {
-            alidDialogMode.value = 'edit';
-            Object.assign(alidForm, {
-                alidId: row.alidId,
-                alarmName: row.alarmName,
-                triggerAddress: row.triggerAddress || '',
-                priority: row.priority,
-                category: row.category,
-                description: row.description || '',
-                handlingSuggestion: row.handlingSuggestion || '',
-                isMonitored: row.isMonitored,
-                autoClear: row.autoClear,
-                alarmTextTemplate: row.alarmTextTemplate || ''
-            });
-            alidDialogVisible.value = true;
-        };
-                const resetAlidForm = () => {
-            Object.assign(alidForm, {
-                alidId: null,
-                alarmName: '',
-                triggerAddress: '',
-                priority: 2,
-                category: 1,
-                description: '',
-                handlingSuggestion: '',
-                isMonitored: true,
-                autoClear: false,
-                alarmTextTemplate: ''
-            });
-        };
 
-        const saveAlid = async () => {
-            if (!alidForm.alidId || !alidForm.alarmName) {
-                ElMessage.warning('请填写必填字段');
-                return;
-            }
-
-            saving.value = true;
-            try {
-                let result;
-                if (alidDialogMode.value === 'add') {
-                    result = await api.post('/alids', alidForm);
-                } else {
-                    result = await api.put(`/alids/${alidForm.alidId}`, {
-                        alarmName: alidForm.alarmName,
-                        triggerAddress: alidForm.triggerAddress,
-                        priority: alidForm.priority,
-                        category: alidForm.category,
-                        description: alidForm.description,
-                        handlingSuggestion: alidForm.handlingSuggestion,
-                        isMonitored: alidForm.isMonitored,
-                        autoClear: alidForm.autoClear,
-                        alarmTextTemplate: alidForm.alarmTextTemplate
-                    });
-                }
-
-                if (result.success) {
-                    ElMessage.success(result.message);
-                    alidDialogVisible.value = false;
-                    loadAlidMappings();
-                } else {
-                    ElMessage.error(result.message);
-                }
-            } catch (error) {
-                console.error('保存ALID失败:', error);
-                ElMessage.error('保存失败，请重试');
-            } finally {
-                saving.value = false;
-            }
-        };
-
-        const deleteAlid = async (row) => {
-            try {
-                await ElMessageBox.confirm(
-                    `确定要删除报警 "${row.alarmName}" (ID: ${row.alidId}) 吗？`,
-                    '删除确认',
-                    {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'warning',
-                    }
-                );
-
-                const result = await api.delete(`/alids/${row.alidId}`);
-                if (result.success) {
-                    ElMessage.success(result.message);
-                    loadAlidMappings();
-                }
-            } catch (error) {
-                if (error !== 'cancel') {
-                    console.error('删除ALID失败:', error);
-                    ElMessage.error('删除失败，请重试');
-                }
-            }
-        };
-
-        const searchAlids = () => {
-            loadAlidMappings(); // 可以根据需要实现搜索逻辑
-        };
-
-        // 批量更新监控状态
-        const toggleAlidMonitoring = async (alidIds, isMonitored) => {
-            try {
-                const result = await api.put('/alids/monitoring-status', {
-                    alidIds: alidIds,
-                    isMonitored: isMonitored
-                });
-
-                if (result.success) {
-                    ElMessage.success(result.message);
-                    loadAlidMappings();
-                }
-            } catch (error) {
-                console.error('更新监控状态失败:', error);
-                ElMessage.error('更新监控状态失败');
-            }
-        };
-
-        // 根据分类筛选
-        const filterByCategory = async (category) => {
-            try {
-                const result = await api.get(`/alids/category/${category}`);
-                if (result.success) {
-                    alidMappings.value = result.data || [];
-                }
-            } catch (error) {
-                console.error('分类筛选失败:', error);
-                ElMessage.error('分类筛选失败');
-            }
-        };
-
-        // 获取优先级颜色
-        const getPriorityColor = (priority) => {
-            const option = priorityOptions.find(opt => opt.value === priority);
-            return option ? option.color : '#909399';
-        };
-
-        // 获取分类颜色
-        const getCategoryColor = (category) => {
-            const option = categoryOptions.find(opt => opt.value === category);
-            return option ? option.color : '#409eff';
-        };
-                // ============= ALID 数据加载方法 =============
-        const loadAlidMappings = async () => {
-            loading.value = true;
-            try {
-                const result = await api.get('/alids');
-                if (result.success) {
-                    alidMappings.value = result.data || [];
-                    console.log('ALID映射数据加载成功:', alidMappings.value.length);
-                } else {
-                    ElMessage.warning(result.message || '加载ALID映射数据失败');
-                }
-            } catch (error) {
-                console.error('加载ALID映射失败:', error);
-                ElMessage.warning('加载ALID映射数据失败，请检查服务器连接');
-            } finally {
-                loading.value = false;
-            }
-        };
                 // 搜索
                 const svidSearchTerm = ref('');
-        // ============= ALID 数据和状态 =============
-        const alidDialogVisible = ref(false);
-        const alidDialogMode = ref('add'); // 'add' 或 'edit'
-        const alidSearchTerm = ref('');
-        const alidForm = reactive({
-            alidId: null,
-            alarmName: '',
-            triggerAddress: '',
-            priority: 2,
-            category: 1,
-            description: '',
-            handlingSuggestion: '',
-            isMonitored: true,
-            autoClear: false,
-            alarmTextTemplate: ''
-        });
-                // 对话框状态
+                const alidSearchTerm = ref('');
+                const ceidSearchTerm = ref('');
+                const rptidSearchTerm = ref('');
+
+                // 对话框
                 const svidDialogVisible = ref(false);
+                const alidDialogVisible = ref(false);
+                const ceidDialogVisible = ref(false);
+                const rptidDialogVisible = ref(false);
+
                 const svidDialogMode = ref('add');
-                const importDialogVisible = ref(false);
-                const importData = ref('');
+                const alidDialogMode = ref('add');
+                const ceidDialogMode = ref('add');
+                const rptidDialogMode = ref('add');
 
                 // 表单数据
                 const svidForm = reactive({
@@ -916,23 +736,35 @@
                     description: '',
                     isActive: true
                 });
-                        // ALID 表单验证规则
-        const alidRules = {
-            alidId: [
-                { required: true, message: '请输入ALID ID', trigger: 'blur' },
-                { type: 'number', min: 12000, max: 12095, message: 'ALID ID必须在12000-12095范围内', trigger: 'blur' }
-            ],
-            alarmName: [
-                { required: true, message: '请输入报警名称', trigger: 'blur' },
-                { min: 2, max: 100, message: '报警名称长度在2到100个字符', trigger: 'blur' }
-            ],
-            priority: [
-                { required: true, message: '请选择优先级', trigger: 'change' }
-            ],
-            category: [
-                { required: true, message: '请选择分类', trigger: 'change' }
-            ]
-        };
+
+                const alidForm = reactive({
+                    alidId: null,
+                    alarmName: '',
+                    triggerAddress: '',
+                    priority: 2,
+                    category: 1,
+                    description: '',
+                    handlingSuggestion: '',
+                    isMonitored: true,
+                    autoClear: false,
+                    alarmTextTemplate: ''
+                });
+
+                const ceidForm = reactive({
+                    ceidId: null,
+                    eventName: '',
+                    triggerAddress: '',
+                    description: '',
+                    isEnabled: true
+                });
+
+                const rptidForm = reactive({
+                    rptidId: null,
+                    reportName: '',
+                    description: '',
+                    isActive: true
+                });
+
                 // 表单验证规则
                 const svidRules = {
                     svidId: [
@@ -940,117 +772,176 @@
                         { type: 'number', min: 10000, max: 10099, message: 'SVID ID必须在10000-10099范围内', trigger: 'blur' }
                     ],
                     svidName: [
-                        { required: true, message: '请输入SVID名称', trigger: 'blur' },
-                        { max: 100, message: '名称长度不能超过100个字符', trigger: 'blur' }
+                        { required: true, message: '请输入SVID名称', trigger: 'blur' }
                     ],
                     plcAddress: [
-                        { required: true, message: '请输入PLC地址', trigger: 'blur' },
-                        { pattern: /^[DMXY]\d+(\.\d+)?$/, message: 'PLC地址格式不正确', trigger: 'blur' }
+                        { required: true, message: '请输入PLC地址', trigger: 'blur' }
                     ],
                     dataType: [
                         { required: true, message: '请选择数据类型', trigger: 'change' }
                     ]
                 };
 
+                const alidRules = {
+                    alidId: [
+                        { required: true, message: '请输入ALID ID', trigger: 'blur' },
+                        { type: 'number', min: 50001, max: 50099, message: 'ALID ID必须在50001-50099范围内', trigger: 'blur' }
+                    ],
+                    alarmName: [
+                        { required: true, message: '请输入报警名称', trigger: 'blur' }
+                    ],
+                    priority: [
+                        { required: true, message: '请选择优先级', trigger: 'change' }
+                    ],
+                    category: [
+                        { required: true, message: '请选择分类', trigger: 'change' }
+                    ]
+                };
+
+                const ceidRules = {
+                    ceidId: [
+                        { required: true, message: '请输入CEID ID', trigger: 'blur' },
+                        { type: 'number', min: 30001, max: 30099, message: 'CEID ID必须在30001-30099范围内', trigger: 'blur' }
+                    ],
+                    eventName: [
+                        { required: true, message: '请输入事件名称', trigger: 'blur' }
+                    ]
+                };
+
+                const rptidRules = {
+                    rptidId: [
+                        { required: true, message: '请输入RPTID ID', trigger: 'blur' },
+                        { type: 'number', min: 20001, max: 20099, message: 'RPTID ID必须在20001-20099范围内', trigger: 'blur' }
+                    ],
+                    reportName: [
+                        { required: true, message: '请输入报告名称', trigger: 'blur' }
+                    ]
+                };
+
+                // 计算属性 - 过滤后的数据
+                const filteredSvidMappings = computed(() => {
+                    if (!svidSearchTerm.value) return svidMappings.value;
+                    return svidMappings.value.filter(item =>
+                        item.svidId.toString().includes(svidSearchTerm.value) ||
+                        item.svidName.toLowerCase().includes(svidSearchTerm.value.toLowerCase()) ||
+                        (item.plcAddress && item.plcAddress.toLowerCase().includes(svidSearchTerm.value.toLowerCase()))
+                    );
+                });
+
+                const filteredAlidMappings = computed(() => {
+                    if (!alidSearchTerm.value) return alidMappings.value;
+                    return alidMappings.value.filter(item =>
+                        item.alidId.toString().includes(alidSearchTerm.value) ||
+                        item.alarmName.toLowerCase().includes(alidSearchTerm.value.toLowerCase())
+                    );
+                });
+
+                const filteredCeidMappings = computed(() => {
+                    if (!ceidSearchTerm.value) return ceidMappings.value;
+                    return ceidMappings.value.filter(item =>
+                        item.ceidId.toString().includes(ceidSearchTerm.value) ||
+                        item.eventName.toLowerCase().includes(ceidSearchTerm.value.toLowerCase())
+                    );
+                });
+
+                const filteredRptidMappings = computed(() => {
+                    if (!rptidSearchTerm.value) return rptidMappings.value;
+                    return rptidMappings.value.filter(item =>
+                        item.rptidId.toString().includes(rptidSearchTerm.value) ||
+                        item.reportName.toLowerCase().includes(rptidSearchTerm.value.toLowerCase())
+                    );
+                });
+
                 // API调用
                 const api = {
                     async get(url) {
-                        try {
-                            const response = await axios.get(`/idmapping${url}`);
-                            return response.data;
-                        } catch (error) {
-                            console.error('API请求失败:', error);
-                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
-                            throw error;
-                        }
+                        const response = await axios.get(url);
+                        return response.data;
                     },
-
                     async post(url, data) {
-                        try {
-                            const response = await axios.post(`/idmapping${url}`, data);
-                            return response.data;
-                        } catch (error) {
-                            console.error('API请求失败:', error);
-                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
-                            throw error;
-                        }
+                        const response = await axios.post(url, data);
+                        return response.data;
                     },
-
                     async put(url, data) {
-                        try {
-                            const response = await axios.put(`/api/idmapping${url}`, data);
-                            return response.data;
-                        } catch (error) {
-                            console.error('API请求失败:', error);
-                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
-                            throw error;
-                        }
+                        const response = await axios.put(url, data);
+                        return response.data;
                     },
-
                     async delete(url) {
-                        try {
-                            const response = await axios.delete(`/api/idmapping${url}`);
-                            return response.data;
-                        } catch (error) {
-                            console.error('API请求失败:', error);
-                            ElMessage.error('请求失败: ' + (error.response?.data?.message || error.message));
-                            throw error;
-                        }
+                        const response = await axios.delete(url);
+                        return response.data;
                     }
                 };
 
                 // 加载数据方法
                 const loadSvidMappings = async () => {
-                    loading.value = true;
                     try {
-                        const result = await api.get('/svids');
+                        loading.value = true;
+                        const result = await api.get('/IdMapping/svids');
                         if (result.success) {
-                            svidMappings.value = result.data || [];
+                            svidMappings.value = result.data;
                         }
                     } catch (error) {
                         console.error('加载SVID映射失败:', error);
-                        ElMessage.warning('加载SVID映射数据失败，请检查服务器连接');
+                        ElMessage.error('加载SVID映射失败');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadAlidMappings = async () => {
+                    try {
+                        loading.value = true;
+                        const result = await api.get('/IdMapping/alids');
+                        if (result.success) {
+                            alidMappings.value = result.data;
+                        }
+                    } catch (error) {
+                        console.error('加载ALID映射失败:', error);
+                        ElMessage.error('加载ALID映射失败');
                     } finally {
                         loading.value = false;
                     }
                 };
 
                 const loadCeidMappings = async () => {
-                    loading.value = true;
                     try {
-                        const result = await api.get('/ceids');
+                        loading.value = true;
+                        const result = await api.get('/IdMapping/ceids');
                         if (result.success) {
-                            ceidMappings.value = result.data || [];
+                            console.log(result);
+                            ceidMappings.value = result.data;
                         }
                     } catch (error) {
                         console.error('加载CEID映射失败:', error);
-                        ElMessage.warning('加载CEID映射数据失败，请检查服务器连接');
+                        ElMessage.error('加载CEID映射失败');
                     } finally {
                         loading.value = false;
                     }
                 };
 
                 const loadRptidMappings = async () => {
-                    loading.value = true;
                     try {
-                        const result = await api.get('/rptids');
+                        loading.value = true;
+                        const result = await api.get('/IdMapping/rptids');
                         if (result.success) {
-                            rptidMappings.value = result.data || [];
+                            rptidMappings.value = result.data;
                         }
                     } catch (error) {
                         console.error('加载RPTID映射失败:', error);
-                        ElMessage.warning('加载RPTID映射数据失败，请检查服务器连接');
+                        ElMessage.error('加载RPTID映射失败');
                     } finally {
                         loading.value = false;
                     }
                 };
 
-
-                // 事件处理方法
+                // 通用方法
                 const handleTabChange = (tabName) => {
                     switch (tabName) {
                         case 'svid':
                             loadSvidMappings();
+                            break;
+                        case 'alid':
+                            loadAlidMappings();
                             break;
                         case 'ceid':
                             loadCeidMappings();
@@ -1058,18 +949,38 @@
                         case 'rptid':
                             loadRptidMappings();
                             break;
-                        case 'alid':
-                            loadAlidMappings();
-                            break;
                     }
                 };
 
-                const refreshAll = () => {
-                    handleTabChange(activeTab.value);
+                const refreshAll = async () => {
+                    await loadSvidMappings();
+                    await loadAlidMappings();
+                    await loadCeidMappings();
+                    await loadRptidMappings();
+                    ElMessage.success('刷新完成');
                 };
 
-                const searchSvids = () => {
-                    loadSvidMappings();
+                const exportConfig = async () => {
+                    try {
+                        exporting.value = true;
+                        const result = await api.get('/IdMapping/export');
+                        if (result.success) {
+                            const dataStr = JSON.stringify(result.data, null, 2);
+                            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                            const url = URL.createObjectURL(dataBlob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `id-mapping-config-${new Date().toISOString().split('T')[0]}.json`;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                            ElMessage.success('配置导出成功');
+                        }
+                    } catch (error) {
+                        console.error('导出配置失败:', error);
+                        ElMessage.error('导出配置失败');
+                    } finally {
+                        exporting.value = false;
+                    }
                 };
 
                 // SVID操作方法
@@ -1098,58 +1009,37 @@
                 };
 
                 const validatePlcAddress = async () => {
-                    if (!svidForm.plcAddress) {
-                        ElMessage.warning('请先输入PLC地址');
-                        return;
-                    }
-
-                    validatingAddress.value = true;
+                    if (!svidForm.plcAddress) return;
                     try {
-                        const result = await api.post('/validate/plc-address', { plcAddress: svidForm.plcAddress });
-                        if (result.success) {
-                            ElMessage.success(result.message);
-                        } else {
-                            ElMessage.error(result.message);
+                        const result = await api.post('/IdMapping/validate-plc-address', {
+                            address: svidForm.plcAddress
+                        });
+                        if (!result.success) {
+                            ElMessage.warning(result.message);
                         }
                     } catch (error) {
-                        ElMessage.error('验证PLC地址失败');
-                    } finally {
-                        validatingAddress.value = false;
+                        console.error('验证PLC地址失败:', error);
                     }
                 };
 
                 const saveSvid = async () => {
-                    const instance = getCurrentInstance();
-                    const formRef = instance?.refs?.svidFormRef;
-
-                    if (!formRef) {
-                        ElMessage.error('表单引用获取失败');
-                        return;
-                    }
-
                     try {
-                        await formRef.validate();
-                    } catch (error) {
-                        return;
-                    }
-
-                    saving.value = true;
-                    try {
-                        let result;
-                        if (svidDialogMode.value === 'add') {
-                            result = await api.post('/svids', svidForm);
-                        } else {
-                            const { svidId, ...updateData } = svidForm;
-                            result = await api.put(`/svids/${svidId}`, updateData);
-                        }
-
+                        saving.value = true;
+                        const isAdd = svidDialogMode.value === 'add';
+                        const url = isAdd ? '/IdMapping/svids' : `/IdMapping/svids/${svidForm.svidId}`;
+                        const method = isAdd ? 'post' : 'put';
+                        console.log(svidForm);
+                        const result = await api[method](url, svidForm);
                         if (result.success) {
                             ElMessage.success(result.message);
                             svidDialogVisible.value = false;
-                            loadSvidMappings();
+                            await loadSvidMappings();
+                        } else {
+                            ElMessage.error(result.message);
                         }
                     } catch (error) {
                         console.error('保存SVID失败:', error);
+                        ElMessage.error('保存SVID失败');
                     } finally {
                         saving.value = false;
                     }
@@ -1157,85 +1047,299 @@
 
                 const deleteSvid = async (row) => {
                     try {
-                        await ElMessageBox.confirm(
-                            `确定要删除SVID映射 "${row.svidName}" (${row.svidId}) 吗？`,
-                            '确认删除',
-                            {
-                                confirmButtonText: '确定',
-                                cancelButtonText: '取消',
-                                type: 'warning',
-                            }
-                        );
+                        await ElMessageBox.confirm('确定删除此SVID映射吗？', '确认删除', {
+                            type: 'warning'
+                        });
 
-                        const result = await api.delete(`/svids/${row.svidId}`);
+                        const result = await api.delete(`/IdMapping/svids/${row.svidId}`);
                         if (result.success) {
                             ElMessage.success(result.message);
-                            loadSvidMappings();
+                            await loadSvidMappings();
+                        } else {
+                            ElMessage.error(result.message);
                         }
                     } catch (error) {
                         if (error !== 'cancel') {
                             console.error('删除SVID失败:', error);
+                            ElMessage.error('删除SVID失败');
                         }
                     }
                 };
 
-                // 导入导出方法
-                const exportConfig = async () => {
-                    exporting.value = true;
-                    try {
-                        const result = await api.get('/export');
-                        if (result.success) {
-                            const blob = new Blob([result.data], { type: 'application/json' });
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `id-mappings-${new Date().toISOString().split('T')[0]}.json`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            window.URL.revokeObjectURL(url);
-                            ElMessage.success('配置导出成功');
-                        }
-                    } catch (error) {
-                        console.error('导出配置失败:', error);
-                    } finally {
-                        exporting.value = false;
-                    }
+                // ALID操作方法
+                const showAddAlidDialog = () => {
+                    alidDialogMode.value = 'add';
+                    resetAlidForm();
+                    alidDialogVisible.value = true;
                 };
 
-                const showImportDialog = () => {
-                    importData.value = '';
-                    importDialogVisible.value = true;
+                const editAlid = (row) => {
+                    alidDialogMode.value = 'edit';
+                    Object.assign(alidForm, row);
+                    alidDialogVisible.value = true;
                 };
 
-                const importConfig = async () => {
-                    if (!importData.value.trim()) {
-                        ElMessage.warning('请输入配置数据');
-                        return;
-                    }
+                const resetAlidForm = () => {
+                    Object.assign(alidForm, {
+                        alidId: null,
+                        alarmName: '',
+                        triggerAddress: '',
+                        priority: 2,
+                        category: 1,
+                        description: '',
+                        handlingSuggestion: '',
+                        isMonitored: true,
+                        autoClear: false,
+                        alarmTextTemplate: ''
+                    });
+                };
 
-                    importing.value = true;
+                const saveAlid = async () => {
                     try {
-                        const result = await api.post('/import', { jsonData: importData.value });
+                        saving.value = true;
+                        const isAdd = alidDialogMode.value === 'add';
+                        const url = isAdd ? '/IdMapping/alids' : `/IdMapping/alids/${alidForm.alidId}`;
+                        const method = isAdd ? 'post' : 'put';
+
+                        const result = await api[method](url, alidForm);
                         if (result.success) {
                             ElMessage.success(result.message);
-                            importDialogVisible.value = false;
-                            refreshAll();
+                            alidDialogVisible.value = false;
+                            await loadAlidMappings();
+                        } else {
+                            ElMessage.error(result.message);
                         }
                     } catch (error) {
-                        console.error('导入配置失败:', error);
+                        console.error('保存ALID失败:', error);
+                        ElMessage.error('保存ALID失败');
                     } finally {
-                        importing.value = false;
+                        saving.value = false;
                     }
                 };
 
-                // 其他操作占位符
-                const showAddCeidDialog = () => ElMessage.info('CEID添加功能开发中...');
-                const editCeid = (row) => ElMessage.info('CEID编辑功能开发中...');
-                const deleteCeid = (row) => ElMessage.info('CEID删除功能开发中...');
-                const showAddRptidDialog = () => ElMessage.info('RPTID添加功能开发中...');
-                const editRptid = (row) => ElMessage.info('RPTID编辑功能开发中...');
-                const deleteRptid = (row) => ElMessage.info('RPTID删除功能开发中...');
+                const deleteAlid = async (row) => {
+                    try {
+                        await ElMessageBox.confirm('确定删除此ALID映射吗？', '确认删除', {
+                            type: 'warning'
+                        });
+
+                        const result = await api.delete(`/IdMapping/alids/${row.alidId}`);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            await loadAlidMappings();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('删除ALID失败:', error);
+                            ElMessage.error('删除ALID失败');
+                        }
+                    }
+                };
+
+                const toggleAlidMonitoring = async (row) => {
+                    try {
+                        const result = await api.put(`/IdMapping/alids/${row.alidId}`, row);
+                        if (result.success) {
+                            ElMessage.success('监控状态更新成功');
+                        } else {
+                            // 回滚状态
+                            row.isMonitored = !row.isMonitored;
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        // 回滚状态
+                        row.isMonitored = !row.isMonitored;
+                        console.error('更新监控状态失败:', error);
+                        ElMessage.error('更新监控状态失败');
+                    }
+                };
+
+                // CEID操作方法
+                const showAddCeidDialog = () => {
+                    ceidDialogMode.value = 'add';
+                    resetCeidForm();
+                    ceidDialogVisible.value = true;
+                };
+
+                const editCeid = (row) => {
+                    ceidDialogMode.value = 'edit';
+                    Object.assign(ceidForm, row);
+                    ceidDialogVisible.value = true;
+                };
+
+                const resetCeidForm = () => {
+                    Object.assign(ceidForm, {
+                        ceidId: null,
+                        eventName: '',
+                        triggerAddress: '',
+                        description: '',
+                        isEnabled: true
+                    });
+                };
+
+                const saveCeid = async () => {
+                    try {
+                        saving.value = true;
+                        const isAdd = ceidDialogMode.value === 'add';
+                        const url = isAdd ? '/IdMapping/ceids' : `/IdMapping/ceids/${ceidForm.ceidId}`;
+                        const method = isAdd ? 'post' : 'put';
+
+                        const result = await api[method](url, ceidForm);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            ceidDialogVisible.value = false;
+                            await loadCeidMappings();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        console.error('保存CEID失败:', error);
+                        ElMessage.error('保存CEID失败');
+                    } finally {
+                        saving.value = false;
+                    }
+                };
+
+                const deleteCeid = async (row) => {
+                    try {
+                        await ElMessageBox.confirm('确定删除此CEID映射吗？', '确认删除', {
+                            type: 'warning'
+                        });
+
+                        const result = await api.delete(`/IdMapping/ceids/${row.ceidId}`);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            await loadCeidMappings();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('删除CEID失败:', error);
+                            ElMessage.error('删除CEID失败');
+                        }
+                    }
+                };
+
+                // RPTID操作方法
+                const showAddRptidDialog = () => {
+                    rptidDialogMode.value = 'add';
+                    resetRptidForm();
+                    rptidDialogVisible.value = true;
+                };
+
+                const editRptid = (row) => {
+                    rptidDialogMode.value = 'edit';
+                    Object.assign(rptidForm, row);
+                    rptidDialogVisible.value = true;
+                };
+
+                const resetRptidForm = () => {
+                    Object.assign(rptidForm, {
+                        rptidId: null,
+                        reportName: '',
+                        description: '',
+                        isActive: true
+                    });
+                };
+
+                const saveRptid = async () => {
+                    try {
+                        saving.value = true;
+                        const isAdd = rptidDialogMode.value === 'add';
+                        const url = isAdd ? '/IdMapping/rptids' : `/IdMapping/rptids/${rptidForm.rptidId}`;
+                        const method = isAdd ? 'post' : 'put';
+
+                        const result = await api[method](url, rptidForm);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            rptidDialogVisible.value = false;
+                            await loadRptidMappings();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        console.error('保存RPTID失败:', error);
+                        ElMessage.error('保存RPTID失败');
+                    } finally {
+                        saving.value = false;
+                    }
+                };
+
+                const deleteRptid = async (row) => {
+                    try {
+                        await ElMessageBox.confirm('确定删除此RPTID映射吗？', '确认删除', {
+                            type: 'warning'
+                        });
+
+                        const result = await api.delete(`/IdMapping/rptids/${row.rptidId}`);
+                        if (result.success) {
+                            ElMessage.success(result.message);
+                            await loadRptidMappings();
+                        } else {
+                            ElMessage.error(result.message);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('删除RPTID失败:', error);
+                            ElMessage.error('删除RPTID失败');
+                        }
+                    }
+                };
+
+                // 搜索方法
+                const searchSvids = () => {
+                    // 搜索功能由计算属性实现
+                };
+
+                const searchAlids = () => {
+                    // 搜索功能由计算属性实现
+                };
+
+                // 辅助方法
+                const getPriorityColor = (priority) => {
+                    const colors = {
+                        1: '#909399',
+                        2: '#e6a23c',
+                        3: '#f56c6c',
+                        4: '#ff4d4f'
+                    };
+                    return colors[priority] || '#909399';
+                };
+
+                const getPriorityName = (priority) => {
+                    const names = {
+                        1: '低',
+                        2: '中',
+                        3: '高',
+                        4: '紧急'
+                    };
+                    return names[priority] || '未知';
+                };
+
+                const getCategoryName = (category) => {
+                    const names = {
+                        1: '系统报警',
+                        2: '硬件报警',
+                        3: '工艺报警',
+                        4: '安全报警',
+                        5: '维护报警'
+                    };
+                    return names[category] || '未知';
+                };
+
+                const getCategoryType = (category) => {
+                    const types = {
+                        1: '',
+                        2: 'danger',
+                        3: 'warning',
+                        4: 'danger',
+                        5: 'info'
+                    };
+                    return types[category] || '';
+                };
 
                 // 生命周期
                 onMounted(() => {
@@ -1248,67 +1352,88 @@
                     activeTab,
                     loading,
                     exporting,
-                    importing,
                     saving,
-                    validatingAddress,
-                    showStatistics,
+
+                    // 数据
                     svidMappings,
+                    alidMappings,
                     ceidMappings,
                     rptidMappings,
-                    alidMappings,
-                    svidSearchTerm,
-                    svidDialogVisible,
-                    svidDialogMode,
-                    importDialogVisible,
-                    importData,
-                    svidForm,
-                    svidRules,
-                         // 新增的 ALID 响应式数据
 
-        alidDialogVisible,
-        alidDialogMode,
-        alidSearchTerm,
-        alidForm,
-        alidRules,
-        priorityOptions,
-        categoryOptions,
-            // 新增的 ALID 方法
-        loadAlidMappings,
-        showAddAlidDialog,
-        editAlid,
-        resetAlidForm,
-        saveAlid,
-        deleteAlid,
-        searchAlids,
-        toggleAlidMonitoring,
-        filterByCategory,
-        getPriorityColor,
-        getCategoryColor,
+                    // 搜索
+                    svidSearchTerm,
+                    alidSearchTerm,
+                    ceidSearchTerm,
+                    rptidSearchTerm,
+
+                    // 过滤后的数据
+                    filteredSvidMappings,
+                    filteredAlidMappings,
+                    filteredCeidMappings,
+                    filteredRptidMappings,
+
+                    // 对话框
+                    svidDialogVisible,
+                    alidDialogVisible,
+                    ceidDialogVisible,
+                    rptidDialogVisible,
+                    svidDialogMode,
+                    alidDialogMode,
+                    ceidDialogMode,
+                    rptidDialogMode,
+
+                    // 表单
+                    svidForm,
+                    alidForm,
+                    ceidForm,
+                    rptidForm,
+                    svidRules,
+                    alidRules,
+                    ceidRules,
+                    rptidRules,
+
                     // 方法
                     handleTabChange,
                     refreshAll,
+                    exportConfig,
                     searchSvids,
+                    searchAlids,
+
+                    // SVID方法
                     showAddSvidDialog,
                     editSvid,
-                    validatePlcAddress,
                     saveSvid,
                     deleteSvid,
-                    exportConfig,
-                    showImportDialog,
-                    importConfig,
-                    showAddCeidDialog,
-                    editCeid,
-                    deleteCeid,
-                    showAddRptidDialog,
-                    editRptid,
-                    deleteRptid,
+                    validatePlcAddress,
+
+                    // ALID方法
                     showAddAlidDialog,
                     editAlid,
-                    deleteAlid
+                    saveAlid,
+                    deleteAlid,
+                    toggleAlidMonitoring,
+
+                    // CEID方法
+                    showAddCeidDialog,
+                    editCeid,
+                    saveCeid,
+                    deleteCeid,
+
+                    // RPTID方法
+                    showAddRptidDialog,
+                    editRptid,
+                    saveRptid,
+                    deleteRptid,
+
+                    // 辅助方法
+                    getPriorityColor,
+                    getPriorityName,
+                    getCategoryName,
+                    getCategoryType
                 };
             }
         }).use(ElementPlus, {
-            locale: ElementPlusLocaleZhCn
+            // locale: ElementPlusLocaleZhCn
         }).mount('#app');
     </script>
 </body>
